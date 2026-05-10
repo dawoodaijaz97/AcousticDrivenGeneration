@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+---
+
+## Project
+
+University project with **Professor Tomas Vargara**: improve **T5-family** models for **acoustic-driven generation of mFDA-style clinical speech reports** so they perform as well as practical compared to larger LLMs described in the paper.
+
+## Task
+
+- **Input**: Acoustic **biomarkers** (and task/category structure), not raw clinical text prompts—features are tokenized or formatted as instructions for a seq2seq or instruction-tuned model.
+- **Output**: Structured, **mFDA-like** reports (seven categories: breathing, lips, larynx, palate, monotonicity, tongue, intelligibility) with categorical severity labels (Normal / Mild / Moderate / Severe), aligned with the paper’s PC-GITA setup.
+
+## Paper / dataset context (see `docs/`)
+
+- **Data**: **PC-GITA**—50 Parkinson’s disease (PD) and 50 healthy control (HC) speakers; Colombian Spanish; four tasks: sustained /a/, /pa-ta-ka/, reading, spontaneous conversation; audio at **16 kHz**, amplitude scaled to **[-1, 1]**.
+- **Features**: ~**248** task-specific biomarkers (phonation, prosody, phonemic); selection links features to mFDA categories; **synthetic prompt–report pairs** (~110k train/val) augment small real data; **~100 real reports** used for test-style evaluation.
+- **Models in the paper**: **T5**, **Flan-T5**, GPT-2 vs **LLaMA-7B**, **Mistral-7B**, DeepSeek-Qwen2.5-7B—**smaller encoder-decoder and GPT-2 models underperform** the 7B models on metrics such as BLEU / ROUGE / BERTScore.
+- **Evaluation**: BLEU, ROUGE, BERTScore; per-category coverage; optional clinician review—compare baselines under **consistent** protocols.
+
+## This repo’s goal
+
+Push **T5 / Flan-T5** performance as far as possible via **configuration and training choices** (model size, finetuning strategy, **LoRA/adapters**, prompts, feature-to-text bridging, schedulers, augmentation, etc.), with **ETL and a reproducible data pipeline first** (`docs/project-plan.md`). Prefer ablations and tracked experiments (e.g. wandb) over one-off runs.
+
+## Pipeline reference
+
+High-level flow is documented in `docs/proposed-pipeline.md`: preprocess audio → compute biomarkers → map to mFDA categories → tokenize for the model → fine-tune **T5/Flan-T5** (often with **LoRA**) → evaluate on held-out real reports.
+
+## Environment
+Using conda AcousticDrivenGeneration, so make your the agents also use the same conda environment. 

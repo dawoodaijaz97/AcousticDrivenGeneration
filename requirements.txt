@@ -1,0 +1,23 @@
+# Install from repo root: pip install -r requirements.txt
+#
+# PyTorch: this project uses it for main/train.py. If you use conda, install
+# PyTorch from conda or https://pytorch.org instead of relying on pip here,
+# to match your CUDA/CPU build.
+
+# --- Data pipeline (ETL + main.prepare) ---
+pandas>=2.0
+pyarrow>=14.0
+
+# --- ETL dashboards / PDF reports (etl/generate_etl_*.py, make_processed_figures) ---
+matplotlib>=3.7
+
+# --- Hugging Face: tokenization, datasets, training ---
+datasets>=2.16
+transformers>=4.38
+accelerate>=1.1
+sentencepiece>=0.1.99
+safetensors>=0.4
+
+# --- Optional logging (main.train --report-to) ---
+# wandb
+# tensorboard

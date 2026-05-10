@@ -1,0 +1,70 @@
+---
+alwaysApply: true
+---
+
+### Acoustic-Driven Clinical Report Generation — Project Plan
+
+- **Goal**: Generate clinically oriented reports from acoustic features, with a focus on improving T5-based models to close the gap with LLaMA-7B/Mistral-7B.
+- **Problem context**: Prior results show T5 performs significantly worse than LLaMA/Mistral on this task; the objective is to push T5 performance via architecture, training, and configuration choices.
+- **Inputs**: Precomputed or extracted acoustic features (e.g., prosodic, spectral, temporal descriptors); optionally metadata/labels.
+- **Outputs**: Clinical-style textual reports/summaries grounded in the acoustic inputs.
+
+### Core workstreams
+
+- **ETL (Extract, Transform, Load)** — completed:
+  - [x] **Extract**: Identify data sources; ingest raw audio and/or precomputed features, labels, and metadata; capture schemas and file conventions
+  - [x] **Transform**: Validate and clean records; compute or harmonize acoustic features; handle missing values, units, and alignment to report text; apply deduplication and quality filters
+  - [x] **Load**: Write canonical datasets (e.g., versioned Parquet/JSONL); document provenance, splits policy, and reproducible manifests; stage outputs for the training pipeline
+
+- **Data pipeline** — completed (see `docs/data-pipeline.md`, package `main/`):
+  - [x] Load and normalize acoustic features (`main.io.load_pipeline_splits` → `etl.etl_lib.load_split_csv`; 7 features parsed from `Instructions`, fixed-order `input_text`)
+  - [x] Align features with text targets; create train/val/test splits (canonical `train`/`val`/`test` DataFrames with paired `input_text` + `target_text`, leakage-checked `example_hash`)
+  - [x] Preprocess and tokenize targets for T5; serialize datasets (`main.tokenization.tokenize_dataset_dict` with `-100` label masking; parquet/JSONL via `main.io.write_processed_splits`; `DatasetDict.save_to_disk` via `python -m main.prepare --tokenize`)
+
+- **Modeling (T5-centric)**:
+  - [ ] Explore model sizes (Small → Base → Large)
+  - [ ] Compare span corruption pre-finetune vs direct seq2seq finetuning
+  - [ ] Add adapters/LoRA; investigate parameter-efficient finetuning
+  - [ ] Prompt formats and task conditioning; longer context handling
+  - [ ] Bridge feature-to-text: projection tokens, learned embeddings, or discretized features
+  - [ ] Losses/regularization: label smoothing, contrastive or auxiliary prediction heads
+
+- **Training**:
+  - [ ] Optimizer/scheduler sweeps; learning rate, warmup, cosine/linear
+  - [ ] Batch size, gradient accumulation; mixed precision
+  - [ ] Curriculum strategies; data augmentation/noise for features
+  - [ ] Early stopping, checkpointing, reproducibility controls
+
+- **Evaluation**:
+  - [ ] Automatic metrics: BLEU, ROUGE, BERTScore
+  - [ ] Clinical utility metrics: keyword/slot accuracy, factual alignment checks
+  - [ ] Error typology and qualitative review; clinician-in-the-loop where feasible
+  - [ ] Compare against LLaMA-7B/Mistral-7B baselines under consistent settings
+
+- **Reporting**:
+  - [ ] Ablations and configuration tracking (wandb or equivalent)
+  - [ ] Clear tables/plots identifying which changes improve T5
+
+### Deliverables
+
+- Reproducible training/evaluation code and scripts
+- Best-performing T5 checkpoints and configs
+- Comparative results vs LLaMA-7B and Mistral-7B
+- Final write-up for the course and Professor Tomas Vargara
+
+### Current repository state
+
+- **Present**:
+  - `docs/` — paper, paper overview, proposed pipeline, `etl.md`, `data-pipeline.md`
+  - `data/Data_splits/` — simulated train (1k/10k/100k), val (10k), real test (96)
+  - `etl/` — ETL library + CLIs (`run_etl.py`, report/figure/PDF generators)
+  - `main/` — data pipeline (`io`, `prompts`, `tokenization`, `prepare` CLI)
+  - `requirements.txt`, conda env `AcousticDrivenGeneration`
+- **Missing**: T5 training loop, evaluation scripts, baseline comparison harness
+
+### Immediate next steps
+
+- [x] Set up environment and base repository skeleton (data module — `main/`)
+- [ ] Implement a minimal T5 baseline (`main/train.py`) on the tokenized `DatasetDict` produced by `python -m main.prepare --tokenize`
+- [ ] Iterate on T5 configurations (size, adapters/LoRA, context handling, feature-token strategies) with disciplined tracking of metrics and seeds
+- [ ] Establish baseline comparisons with LLaMA-7B/Mistral-7B under matched evaluation protocols
