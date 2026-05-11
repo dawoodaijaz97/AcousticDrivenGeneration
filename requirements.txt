@@ -18,6 +18,13 @@ accelerate>=1.1
 sentencepiece>=0.1.99
 safetensors>=0.4
 
+# --- Decode metrics (main.eval_decode): BLEU / ROUGE / BERTScore ---
+evaluate>=0.4.0
+sacrebleu>=2.4
+rouge-score>=0.1.2
+bert-score>=0.3.13
+nltk>=3.8
+
 # --- Optional logging (main.train --report-to) ---
 # wandb
 # tensorboard
