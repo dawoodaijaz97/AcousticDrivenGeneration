@@ -55,7 +55,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--warmup-ratio", type=float, default=0.1)
     p.add_argument("--logging-steps", type=int, default=100)
     p.add_argument("--eval-steps", type=int, default=500)
-    p.add_argument("--save-steps", type=int, default=500)
+    p.add_argument(
+        "--save-steps",
+        type=int,
+        default=500,
+        help=(
+            "Checkpoint interval. With load_best_model_at_end=True (always on here), must be a positive "
+            "multiple of --eval-steps (e.g. eval every 7000 → save every 7000)."
+        ),
+    )
     p.add_argument("--save-total-limit", type=int, default=2)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument(
@@ -291,6 +299,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.max_steps > 0:
         eval_steps = max(1, min(eval_steps, args.max_steps))
         save_steps = max(1, min(save_steps, args.max_steps))
+
+    # HF Trainer + load_best_model_at_end: save_steps must be a positive multiple of eval_steps.
+    if save_steps % eval_steps != 0:
+        k = max(1, (save_steps + eval_steps - 1) // eval_steps)
+        suggestion = k * eval_steps
+        raise SystemExit(
+            "With load_best_model_at_end=True, --save-steps must be a positive integer multiple of "
+            f"--eval-steps (Hugging Face requirement). Got save_steps={save_steps}, eval_steps={eval_steps}. "
+            f"Example: --save-steps {eval_steps}  or  --save-steps {suggestion}"
+        )
 
     metric_for_best = "eval_val_loss" if eval_train_ds is not None else "eval_loss"
 
