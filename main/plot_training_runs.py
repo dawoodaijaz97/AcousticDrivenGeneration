@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from matplotlib.patches import Patch
+
 from main.paths import repo_root, resolve_under_repo
 
 
@@ -17,7 +19,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "If <run_dir>/test_eval.json exists (from main.train post-train test), "
             "test_loss is drawn on the eval panel at the run's final step. "
             "If <run_dir>/test_decode_metrics.json exists (from main.eval_decode), "
-            "overall R_1/R_2/R_L/BLEU/BERT/AVG are shown as grouped bars in a third panel."
+            "R_1/R_2/R_L/BLEU/BERT/AVG are shown in a third panel: overall plus PD/HC "
+            "(when by_group is present in the JSON) as clustered bars per run."
         ),
     )
     p.add_argument(
@@ -129,6 +132,15 @@ DECODE_BAR_KEYS: tuple[str, ...] = ("R_1", "R_2", "R_L", "BLEU", "BERT", "AVG")
 DECODE_BAR_LABELS: tuple[str, ...] = ("R-1", "R-2", "R-L", "BLEU", "BERT", "AVG")
 
 
+def metrics_from_block(block: Any) -> list[float] | None:
+    if not isinstance(block, dict):
+        return None
+    try:
+        return [float(block[k]) for k in DECODE_BAR_KEYS]
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def load_test_decode_metrics(run_root: Path) -> dict[str, Any] | None:
     """Full JSON from main.eval_decode (test_decode_metrics.json); None if missing."""
     path = run_root / "test_decode_metrics.json"
@@ -137,15 +149,20 @@ def load_test_decode_metrics(run_root: Path) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def overall_decode_bar_values(data: dict[str, Any]) -> list[float] | None:
-    """Six overall scores for the decode bar panel, or None if not present."""
-    overall = data.get("overall")
-    if not isinstance(overall, dict):
+def decode_plot_bundle(
+    data: dict[str, Any],
+) -> tuple[list[float], list[float] | None, list[float] | None] | None:
+    """Overall metrics plus optional PD/HC rows from by_group (Table 4 style)."""
+    ov = metrics_from_block(data.get("overall"))
+    if ov is None:
         return None
-    try:
-        return [float(overall[k]) for k in DECODE_BAR_KEYS]
-    except (KeyError, TypeError, ValueError):
-        return None
+    pd_v: list[float] | None = None
+    hc_v: list[float] | None = None
+    bg = data.get("by_group")
+    if isinstance(bg, dict):
+        pd_v = metrics_from_block(bg.get("PD"))
+        hc_v = metrics_from_block(bg.get("HC"))
+    return (ov, pd_v, hc_v)
 
 
 def split_history(
@@ -206,13 +223,15 @@ def plot_comparison(
     import numpy as np
 
     _try_style()
-    fig, axes = plt.subplots(3, 1, figsize=(10, 9.5), sharex=False, height_ratios=[2.2, 1.0, 1.15])
+    fig, axes = plt.subplots(3, 1, figsize=(10, 10.2), sharex=False, height_ratios=[2.2, 1.0, 1.45])
     ax_train, ax_eval, ax_decode = axes[0], axes[1], axes[2]
 
     colors = plt.rcParams["axes.prop_cycle"].by_key().get("color", ["C0", "C1", "C2", "C3", "C4"])
     summary_lines: list[str] = []
 
-    decode_rows: list[tuple[int, str, list[float]]] = []
+    decode_rows: list[
+        tuple[int, str, list[float], list[float] | None, list[float] | None]
+    ] = []
 
     for i, (label, ts_path, state) in enumerate(series):
         color = colors[i % len(colors)]
@@ -260,9 +279,11 @@ def plot_comparison(
             ax_eval.axhline(test_loss, color=color, linestyle=":", alpha=0.85, lw=1.5, label=f"{label} test (real)")
 
         decode_json = load_test_decode_metrics(run_root)
-        decode_vals = overall_decode_bar_values(decode_json) if decode_json else None
-        if decode_vals is not None:
-            decode_rows.append((i, label, decode_vals))
+        bundle = decode_plot_bundle(decode_json) if decode_json else None
+        decode_vals = bundle[0] if bundle is not None else None
+        if bundle is not None:
+            ov, pd_v, hc_v = bundle
+            decode_rows.append((i, label, ov, pd_v, hc_v))
 
         best = state.get("best_metric")
         step = state.get("global_step")
@@ -315,17 +336,68 @@ def plot_comparison(
         ax_decode.set_xticks(x)
         ax_decode.set_xticklabels(DECODE_BAR_LABELS)
     else:
-        ax_decode.set_title("Decode metrics — overall (main.eval_decode, Table 4 style)")
-        width = 0.82 / n_decode
-        centers = np.linspace(-(n_decode - 1) / 2, (n_decode - 1) / 2, n_decode) * width * 1.15
-        for j, (run_i, lab, vals) in enumerate(decode_rows):
+        ax_decode.set_title(
+            "Decode metrics — overall / PD / HC (main.eval_decode, Table 4 style; hatch: PD //, HC \\\\)"
+        )
+        run_cluster_w = 0.82 / n_decode
+        centers = np.linspace(-(n_decode - 1) / 2, (n_decode - 1) / 2, n_decode) * run_cluster_w * 1.15
+
+        run_legend_handles: list[Patch] = []
+        for j, (run_i, lab, ov, pd_v, hc_v) in enumerate(decode_rows):
             color = colors[run_i % len(colors)]
-            offset = centers[j]
-            ax_decode.bar(x + offset, vals, width=width * 0.92, label=lab, color=color, alpha=0.88, edgecolor="black", linewidth=0.35)
+            base = centers[j]
+            has_sub = pd_v is not None or hc_v is not None
+
+            if not has_sub:
+                ax_decode.bar(
+                    x + base,
+                    ov,
+                    width=run_cluster_w * 0.92,
+                    color=color,
+                    alpha=0.88,
+                    edgecolor="black",
+                    linewidth=0.35,
+                )
+                run_legend_handles.append(Patch(facecolor=color, edgecolor="black", linewidth=0.35, label=lab))
+                continue
+
+            slot_centers = np.linspace(-1.0, 1.0, 3)
+            sub_w = run_cluster_w * 0.92 / 4.0
+            series: list[tuple[list[float] | None, str | None]] = [
+                (ov, None),
+                (pd_v, "//"),
+                (hc_v, "\\\\"),
+            ]
+            for si, (vals, hatch) in enumerate(series):
+                if vals is None:
+                    continue
+                ax_decode.bar(
+                    x + base + slot_centers[si] * sub_w * 1.15,
+                    vals,
+                    width=sub_w,
+                    color=color,
+                    alpha=0.88,
+                    hatch=hatch,
+                    edgecolor="black",
+                    linewidth=0.35,
+                )
+            run_legend_handles.append(Patch(facecolor=color, edgecolor="black", linewidth=0.35, label=lab))
+
         ax_decode.set_xticks(x)
         ax_decode.set_xticklabels(DECODE_BAR_LABELS)
         ax_decode.set_ylim(0.0, 1.05)
-        ax_decode.legend(loc="upper right", fontsize=8, ncol=min(3, n_decode))
+
+        hatch_legend = [
+            Patch(facecolor="0.90", edgecolor="black", linewidth=0.35, label="overall (solid)"),
+            Patch(facecolor="0.90", edgecolor="black", linewidth=0.35, hatch="//", label="PD"),
+            Patch(facecolor="0.90", edgecolor="black", linewidth=0.35, hatch="\\\\", label="HC"),
+        ]
+        ax_decode.legend(
+            handles=run_legend_handles + hatch_legend,
+            loc="upper right",
+            fontsize=7,
+            ncol=min(4, len(run_legend_handles) + 3),
+        )
     ax_decode.set_ylabel("score (0–1)")
     ax_decode.grid(True, axis="y", alpha=0.35)
 
