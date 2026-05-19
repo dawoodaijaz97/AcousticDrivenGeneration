@@ -138,6 +138,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="If the tokenized DatasetDict has a test split, skip final evaluate() on it.",
     )
+    p.add_argument(
+        "--lm-studio-base-url",
+        type=str,
+        default=None,
+        help=(
+            "Optional: write lm_studio.json in --output-dir for eval hints. "
+            "Training always loads --model-name from Hugging Face locally (LM Studio does not train over HTTP)."
+        ),
+    )
+    p.add_argument(
+        "--lm-studio-model",
+        type=str,
+        default=None,
+        help="Optional: LM Studio model id included in lm_studio.json.",
+    )
     return p.parse_args(argv)
 
 
@@ -247,6 +262,11 @@ def main(argv: list[str] | None = None) -> int:
     _log(f"tokenized_dir     = {tokenized}")
     _log(f"output_dir        = {out}")
     _log(f"model_name        = {args.model_name}")
+    if args.lm_studio_base_url:
+        _log(
+            "lm_studio         = --lm-studio-base-url set (hint file only; "
+            "weights still loaded from --model-name for training)"
+        )
 
     raw = load_from_disk(str(tokenized))
     if "train" not in raw or "val" not in raw:
@@ -384,6 +404,17 @@ def main(argv: list[str] | None = None) -> int:
 
     trainer.save_model(str(out / "final_model"))
     tokenizer.save_pretrained(str(out / "final_model"))
+    if args.lm_studio_base_url:
+        hint = {
+            "base_url": args.lm_studio_base_url.strip(),
+            "model": args.lm_studio_model,
+            "tokenizer_model": args.model_name,
+            "note": "Training used local Hugging Face weights. For decode via LM Studio, use main.eval_decode --backend lm-studio.",
+        }
+        hint_path = out / "lm_studio.json"
+        hint_path.write_text(json.dumps(hint, indent=2), encoding="utf-8")
+        _log(f"wrote lm_studio -> {hint_path}")
+
     _log("done.")
     return 0
 

@@ -33,6 +33,31 @@ Optional columns (for example `sample_id`, `example_hash`) may be present; the t
 
 **Important:** `--model-name` should match the tokenizer used when building the dataset (`--tokenizer-model` in `main.prepare`, default **`google/flan-t5-small`**). Mismatched vocabularies will corrupt training.
 
+### Standard T5 and Flan-T5 checkpoints
+
+`--model-name` is any Hugging Face id that loads with `AutoModelForSeq2SeqLM` (this project targets **T5 v1.1–style** encoder–decoder checkpoints). The usual public sizes are below.
+
+**Parameter totals** are **rounded** from the published **`model.safetensors`** weight tensors (total float elements in the checkpoint). Small differences can appear across formats or library versions.
+
+| Hub id | Parameters (≈) |
+| --- | ---: |
+| `google-t5/t5-small` | 61M |
+| `google-t5/t5-base` | 223M |
+| `google-t5/t5-large` | 738M |
+| `google-t5/t5-3b` | 2.85B |
+| `google-t5/t5-11b` | 11B |
+| `google/flan-t5-small` | 77M |
+| `google/flan-t5-base` | 248M |
+| `google/flan-t5-large` | 783M |
+| `google/flan-t5-xl` | 2.85B |
+| `google/flan-t5-xxl` | 11.3B |
+
+**Naming:** the **`google-t5/`** org hosts the maintained **original T5** mirrors; older tutorials sometimes wrote **`google/t5-small`** etc., which may still resolve depending on the Hub. **Flan-T5** lives under **`google/flan-t5-*`**: same **architecture sizes** as T5 at each tier, but instruction-tuned weights. Within a **size tier** (small vs base vs …), T5 and Flan-T5 share the **same tokenizer vocabulary**, so keep **`--tokenizer-model`** and **`--model-name`** on the **same tier** (and rebuild the tokenized dataset if you change tier).
+
+**Related but different vocab:** **mT5** (`google/mt5-small`, `google/mt5-base`, …) is multilingual T5 with a **different SentencePiece vocabulary**. Do not mix mT5 tokenization with T5/Flan-T5 checkpoints unless you deliberately re-tokenize with the matching **`google/mt5-*`** tokenizer.
+
+**Compute:** **XL / XXL / 3B / 11B** need large GPU memory (or multi-GPU / CPU with very long runtimes). Defaults in this repo assume **small**–**base**–scale runs.
+
 ## Model inputs, outputs, validation, and loss
 
 ### Inputs (features → tokens)

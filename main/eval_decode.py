@@ -23,9 +23,13 @@ common HF-based workflows, this script uses HuggingFace ``evaluate`` wrappers:
 
 References are recovered by decoding the tokenized ``labels`` column. Use the same ``--tokenized-dir`` as training.
 
-Example::
+Example (local Hugging Face checkpoint)::
 
     python -m main.eval_decode --tokenized-dir data/processed/100k/tokenized --model-path runs/flan-t5-small-baseline/checkpoint-750 --tokenizer-model google/flan-t5-small --output-json runs/flan-t5-small-baseline/test_decode_metrics.json
+
+Example (LM Studio OpenAI-compatible server; encoder input text is recovered by decoding ``input_ids`` with the same tokenizer)::
+
+    python -m main.eval_decode --backend lm-studio --tokenized-dir data/processed/100k/tokenized --tokenizer-model google/flan-t5-small --lm-studio-base-url http://192.168.2.114:1234 --lm-studio-model "<model-id-from-lm-studio>" --output-json runs/lmstudio_metrics.json
 """
 
 from __future__ import annotations
@@ -46,12 +50,23 @@ from transformers import (
     DataCollatorWithPadding,
 )
 
+from main.lm_studio import lm_studio_chat_completion
 from main.paths import resolve_under_repo
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Decode test split and compute BLEU, ROUGE, and BERTScore (paper Table 4 style).",
+    )
+    p.add_argument(
+        "--backend",
+        type=str,
+        choices=("hf", "lm-studio"),
+        default="hf",
+        help=(
+            "hf: load weights from --model-path (local Hugging Face). "
+            "lm-studio: generate via OpenAI-compatible HTTP API (no local model weights)."
+        ),
     )
     p.add_argument(
         "--tokenized-dir",
@@ -62,14 +77,41 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument(
         "--model-path",
         type=Path,
-        required=True,
-        help="Fine-tuned checkpoint dir (e.g. .../checkpoint-750 or .../final_model).",
+        default=None,
+        help="Fine-tuned checkpoint dir (required for --backend hf). Ignored for --backend lm-studio.",
     )
     p.add_argument(
         "--tokenizer-model",
         type=str,
         required=True,
         help="HF model id used to load the tokenizer (and special tokens).",
+    )
+    p.add_argument(
+        "--lm-studio-base-url",
+        type=str,
+        default=None,
+        help=(
+            "LM Studio server root, e.g. http://192.168.2.114:1234 or http://192.168.2.114:1234/v1 "
+            "(required for --backend lm-studio)."
+        ),
+    )
+    p.add_argument(
+        "--lm-studio-model",
+        type=str,
+        default=None,
+        help="Model identifier as shown in LM Studio (required for --backend lm-studio).",
+    )
+    p.add_argument(
+        "--lm-studio-api-key",
+        type=str,
+        default="lm-studio",
+        help="Bearer token for LM Studio (default matches LM Studio docs).",
+    )
+    p.add_argument(
+        "--lm-studio-timeout",
+        type=float,
+        default=600.0,
+        help="Per-request HTTP timeout in seconds for LM Studio.",
     )
     p.add_argument(
         "--output-json",
@@ -259,10 +301,20 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     torch.manual_seed(args.seed)
 
+    if args.backend == "hf":
+        if args.model_path is None:
+            raise SystemExit("--model-path is required when --backend hf")
+        model_path = resolve_under_repo(args.model_path)
+        if not model_path.is_dir():
+            raise SystemExit(f"model path not found: {model_path}")
+    else:
+        model_path = None
+        if not args.lm_studio_base_url or not args.lm_studio_model:
+            raise SystemExit(
+                "--lm-studio-base-url and --lm-studio-model are required when --backend lm-studio"
+            )
+
     tokenized = _resolve_tokenized_dataset_dir(resolve_under_repo(args.tokenized_dir))
-    model_path = resolve_under_repo(args.model_path)
-    if not model_path.is_dir():
-        raise SystemExit(f"model path not found: {model_path}")
 
     raw = load_from_disk(str(tokenized))
     if "test" not in raw:
@@ -276,20 +328,30 @@ def main(argv: list[str] | None = None) -> int:
 
     device = _pick_device(args.cpu_only)
     _log(f"repo tokenized_dir = {tokenized}")
-    _log(f"model_path         = {model_path}")
-    _log(f"device             = {device}")
+    _log(f"backend            = {args.backend}")
+    if args.backend == "hf":
+        _log(f"model_path         = {model_path}")
+        _log(f"device             = {device}")
+    else:
+        _log(f"lm_studio_base_url = {args.lm_studio_base_url}")
+        _log(f"lm_studio_model    = {args.lm_studio_model}")
+        _log("device             = (LM Studio remote; local device used only for BERTScore)")
     _log(f"test rows          = {len(test_ds):,}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_model)
-    collator = DataCollatorWithPadding(tokenizer, padding=True)
+    collator: DataCollatorWithPadding | None = None
+    if args.backend == "hf":
+        collator = DataCollatorWithPadding(tokenizer, padding=True)
 
-    dtype = torch.float16 if (args.fp16 and device.type == "cuda") else None
-    model = AutoModelForSeq2SeqLM.from_pretrained(
-        str(model_path),
-        torch_dtype=dtype,
-    )
-    model.eval()
-    model.to(device)
+    model: Any | None = None
+    if args.backend == "hf":
+        dtype = torch.float16 if (args.fp16 and device.type == "cuda") else None
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            str(model_path),
+            torch_dtype=dtype,
+        )
+        model.eval()
+        model.to(device)
 
     hypotheses: list[str] = []
     references: list[str] = []
@@ -303,24 +365,52 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_repeat_ngram_size > 0:
         gen_kwargs["no_repeat_ngram_size"] = args.no_repeat_ngram_size
 
+    if args.backend == "lm-studio":
+        if args.num_beams != 3 or args.no_repeat_ngram_size != 2:
+            _log(
+                "NOTE: LM Studio uses the OpenAI chat API; beam width and no-repeat-ngram "
+                "may not match local HF generation (server controls decoding)."
+            )
+
     bs = max(1, args.batch_size)
     n = len(test_ds)
     with torch.no_grad():
         for start in range(0, n, bs):
             batch_rows = test_ds[start : start + bs]
-            features = [
-                {"input_ids": batch_rows["input_ids"][i], "attention_mask": batch_rows["attention_mask"][i]}
-                for i in range(len(batch_rows["input_ids"]))
-            ]
-            padded = collator(features)
-            input_ids = padded["input_ids"].to(device)
-            attention_mask = padded["attention_mask"].to(device)
-            gen = model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                **gen_kwargs,
-            )
-            decoded = tokenizer.batch_decode(gen, skip_special_tokens=True)
+            batch_len = len(batch_rows["input_ids"])
+            if args.backend == "hf" and model is not None and collator is not None:
+                features = [
+                    {"input_ids": batch_rows["input_ids"][i], "attention_mask": batch_rows["attention_mask"][i]}
+                    for i in range(batch_len)
+                ]
+                padded = collator(features)
+                input_ids = padded["input_ids"].to(device)
+                attention_mask = padded["attention_mask"].to(device)
+                gen = model.generate(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    **gen_kwargs,
+                )
+                decoded = tokenizer.batch_decode(gen, skip_special_tokens=True)
+            else:
+                decoded = []
+                for i in range(batch_len):
+                    ids = batch_rows["input_ids"][i]
+                    if hasattr(ids, "tolist"):
+                        ids = ids.tolist()
+                    prompt = tokenizer.decode(list(ids), skip_special_tokens=True).strip()
+                    text = lm_studio_chat_completion(
+                        args.lm_studio_base_url or "",
+                        args.lm_studio_model or "",
+                        prompt,
+                        args.max_new_tokens,
+                        api_key=args.lm_studio_api_key,
+                        temperature=0.0,
+                        timeout_s=args.lm_studio_timeout,
+                        seed=args.seed,
+                    )
+                    decoded.append(text)
+
             for i, text in enumerate(decoded):
                 idx = start + i
                 label_ids = test_ds[idx]["labels"]
@@ -348,9 +438,19 @@ def main(argv: list[str] | None = None) -> int:
                 "no_repeat_ngram_size": args.no_repeat_ngram_size if args.no_repeat_ngram_size > 0 else None,
             },
         },
+        "backend": args.backend,
         "tokenized_dir": str(tokenized),
-        "model_path": str(model_path),
+        "model_path": str(model_path) if model_path is not None else None,
         "tokenizer_model": args.tokenizer_model,
+        "lm_studio": (
+            {
+                "base_url": args.lm_studio_base_url,
+                "model": args.lm_studio_model,
+                "timeout_s": args.lm_studio_timeout,
+            }
+            if args.backend == "lm-studio"
+            else None
+        ),
         "generation": {
             "max_new_tokens": args.max_new_tokens,
             "num_beams": args.num_beams,

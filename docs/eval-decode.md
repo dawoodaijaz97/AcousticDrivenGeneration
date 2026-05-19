@@ -70,7 +70,7 @@ The paper states inference used **512 output tokens**, **beam search 3**, and **
 | --- | --- | --- |
 | `--tokenized-dir` | yes | `DatasetDict` root (or prepare output containing `tokenized/`). |
 | `--model-path` | yes | Directory with fine-tuned weights (`config.json` + `model.safetensors` or `pytorch_model.bin`). |
-| `--tokenizer-model` | yes | HF model id for `AutoTokenizer` (e.g. `google/flan-t5-small`). |
+| `--tokenizer-model` | yes | HF model id for `AutoTokenizer` (e.g. `google/flan-t5-small`). Must match the tokenizer used in `prepare --tokenize`; hub ids and **parameter counts** for the T5 / Flan-T5 family: [train.md](train.md#standard-t5-and-flan-t5-checkpoints). |
 | `--output-json` | no | If set, writes the same JSON blob printed to stdout. |
 | `--batch-size` | no | Decode batch size (default `8`). |
 | `--seed` | no | PyTorch seed (default `42`). |

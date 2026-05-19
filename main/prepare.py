@@ -65,6 +65,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument("--max-source-length", type=int, default=256)
     p.add_argument("--max-target-length", type=int, default=512)
+    p.add_argument(
+        "--lm-studio-base-url",
+        type=str,
+        default=None,
+        help=(
+            "Optional: save LM Studio server URL to lm_studio.json under --output-dir for eval workflows. "
+            "Does not change tokenization (still uses --tokenizer-model from Hugging Face)."
+        ),
+    )
+    p.add_argument(
+        "--lm-studio-model",
+        type=str,
+        default=None,
+        help="Optional: LM Studio model id (stored in lm_studio.json).",
+    )
     return p.parse_args(argv)
 
 
@@ -106,6 +121,20 @@ def main(argv: list[str] | None = None) -> int:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(summaries, indent=2), encoding="utf-8")
     _log(f"wrote summaries  -> {summary_path}")
+
+    if args.lm_studio_base_url:
+        lm_payload = {
+            "base_url": args.lm_studio_base_url.strip(),
+            "model": args.lm_studio_model,
+            "tokenizer_model": args.tokenizer_model if args.tokenize else None,
+            "note": (
+                "prepare still tokenizes with Hugging Face AutoTokenizer. "
+                "For inference via LM Studio use: python -m main.eval_decode --backend lm-studio ..."
+            ),
+        }
+        lm_path = out_dir / "lm_studio.json"
+        lm_path.write_text(json.dumps(lm_payload, indent=2), encoding="utf-8")
+        _log(f"wrote lm_studio -> {lm_path}")
 
     if args.tokenize:
         from transformers import AutoTokenizer

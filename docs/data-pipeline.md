@@ -143,7 +143,9 @@ python -m main.prepare --output-dir data\processed\100k --train-size 100k --toke
 ```
 
 Other tokenizer ids work the same way, e.g.
-`--tokenizer-model google/flan-t5-base` or `t5-small`.
+`--tokenizer-model google/flan-t5-base` or `google-t5/t5-small`.
+
+Use the **same** hub id (or the same **size tier** for T5 vs Flan-T5) as **`--model-name`** in [`main/train.py`](../main/train.py). A **table of standard T5 / Flan-T5 hub ids and parameter counts** is in [train.md — Standard T5 and Flan-T5 checkpoints](train.md#standard-t5-and-flan-t5-checkpoints).
 
 ### 3. Full flag reference
 
