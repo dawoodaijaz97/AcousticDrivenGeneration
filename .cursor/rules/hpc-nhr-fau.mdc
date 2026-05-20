@@ -1,0 +1,164 @@
+---
+description: NHR@FAU / TinyGPU HPC — SSH, conda, data paths, prepare/train commands for this project
+alwaysApply: true
+---
+
+# HPC (NHR@FAU) — vital commands
+
+FAU Tier3 **Grundversorgung** (not Alex by default). Primary GPU cluster: **TinyGPU** (`tinyx.nhr.fau.de`). Docs: [doc.nhr.fau.de](https://doc.nhr.fau.de), local overview: `docs/HPC Info.pdf`.
+
+## Account & paths
+
+| Item | Value |
+|------|--------|
+| HPC user | `iwi5439h` |
+| `$HOME` | `/home/hpc/iwi5/iwi5439h` (~50 GB) |
+| `$WORK` | `/home/woody/iwi5/iwi5439h` (~500 GB) — **code, data, runs, conda** |
+| Project on cluster | `$WORK/AcousticDrivenGeneration` |
+
+Check quota: `shownicerquota.pl` or `quota -s`
+
+## SSH (Windows `~/.ssh/config`)
+
+- **Jump host:** `nhr-jump` → `csnhr.nhr.fau.de`, user `iwi5439h`, key `~/.ssh/id_rsa_hpc_fau`
+- **TinyGPU:** `ssh tinyx` → `tinyx.nhr.fau.de`, `ProxyJump nhr-jump` (same user/key)
+- **Woody (CPU batch):** `ssh woody` → `woody.nhr.fau.de`, same jump/key
+- **No passwords** — keys only via [portal.hpc.fau.de](https://portal.hpc.fau.de); new keys may take **up to 2 h** to propagate
+- Do **not** use `ProxyJump csnhr.nhr.fau.de` without a Host block (defaults to wrong user `dawoo`)
+
+One-liner without alias:
+
+```powershell
+ssh -J iwi5439h@csnhr.nhr.fau.de iwi5439h@tinyx.nhr.fau.de
+```
+
+## TinyGPU Slurm
+
+On `tinyx`, Slurm commands need the **`.tinygpu`** suffix: `salloc.tinygpu`, `sbatch.tinygpu`, `squeue.tinygpu`, `sinfo.tinygpu`.
+
+| GPU | Interactive example |
+|-----|---------------------|
+| **A100** (40 GB) | `salloc.tinygpu --gres=gpu:a100:1 --partition=a100 --time=06:00:00` |
+| **V100** (32 GB) | `salloc.tinygpu --gres=gpu:v100:1 --partition=v100 --time=06:00:00` |
+| **RTX 3080** (10 GB) | `salloc.tinygpu --gres=gpu:rtx3080:1 --partition=rtx3080 --time=01:00:00` |
+
+- **Frontend** `tinyx` = login only; **compute** nodes = `tg0xx` (check `hostname`, `nvidia-smi`)
+- Long training → **`sbatch.tinygpu`**, not hours on frontend (CPU time limits)
+- Queue: `squeue.tinygpu -u iwi5439h`; no exact queue position in Slurm
+
+## Conda (one-time on cluster)
+
+```bash
+module load python
+conda config --add pkgs_dirs $WORK/software/private/conda/pkgs
+conda config --add envs_dirs $WORK/software/private/conda/envs
+conda create -n acoustic python=3.11 -y
+conda activate acoustic
+```
+
+**PyTorch on GPU node** — use **cu121**, not default pip 2.12 (driver mismatch → `cuda: False`):
+
+```bash
+export http_proxy=http://proxy.nhr.fau.de:80
+export https_proxy=http://proxy.nhr.fau.de:80
+pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
+  --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements.txt
+```
+
+Verify: `python -c "import torch; print(torch.__version__, torch.cuda.is_available())"`
+
+## Hugging Face (cluster often blocks Hub on compute nodes)
+
+On **`tinyx`** (with proxy + token):
+
+```bash
+export http_proxy=http://proxy.nhr.fau.de:80
+export https_proxy=http://proxy.nhr.fau.de:80
+export HF_TOKEN=hf_...
+export HF_HOME=$WORK/huggingface
+huggingface-cli download google/flan-t5-small --local-dir $WORK/models/flan-t5-small
+```
+
+Train with local weights + offline:
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+--model-name $WORK/models/flan-t5-small
+```
+
+## Project layout (naming)
+
+| Artifact | Path pattern |
+|----------|----------------|
+| Tokenized data | `data/processed/<model-short>/<size>/tokenized/` |
+| Training outputs | `runs/<model-short>/<size>/` |
+
+Examples: `data/processed/flan-t5-small/100k/tokenized`, `runs/flan-t5-small/100k/`
+
+`runs/` is gitignored. Match **`--tokenizer-model`** at prepare with **`--model-name`** at train.
+
+## Prepare (CPU — `tinyx` or Woody `sbatch`)
+
+```bash
+cd $WORK/AcousticDrivenGeneration
+conda activate acoustic
+module load python
+export http_proxy=http://proxy.nhr.fau.de:80
+export https_proxy=http://proxy.nhr.fau.de:80
+
+python -m main.prepare \
+  --output-dir data/processed/flan-t5-small/100k \
+  --train-size 100k \
+  --tokenize \
+  --tokenizer-model google/flan-t5-small
+```
+
+## Train (GPU — `salloc` or `sbatch.tinygpu`)
+
+**Do not use `--fp16` on TinyGPU V100** — caused `grad_norm: nan` and bogus `loss: 0`. FP32 (no flag) is stable.
+
+```bash
+cd $WORK/AcousticDrivenGeneration
+conda activate acoustic
+module load python
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+mkdir -p runs/flan-t5-small/100k
+
+python -m main.train \
+  --tokenized-dir data/processed/flan-t5-small/100k/tokenized \
+  --output-dir runs/flan-t5-small/100k \
+  --model-name $WORK/models/flan-t5-small \
+  --num-train-epochs 3 \
+  --per-device-train-batch-size 4 \
+  --per-device-eval-batch-size 8 \
+  --learning-rate 3e-4 \
+  --weight-decay 0.01 \
+  --warmup-ratio 0.1 \
+  --logging-steps 100 \
+  --eval-steps 5000 \
+  --save-steps 5000 \
+  --save-total-limit 2 \
+  --seed 42 \
+  --require-gpu
+```
+
+`--save-steps` must be a **positive multiple** of `--eval-steps`. Outputs: `runs/.../checkpoint-*`, `final_model/`, optional `test_eval.json`.
+
+## Copy code/data from Windows (no git)
+
+```powershell
+ssh tinyx "mkdir -p /home/woody/iwi5/iwi5439h/AcousticDrivenGeneration"
+scp -r main etl docs requirements.txt .gitignore tinyx:/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/
+scp -r C:\Users\dawoo\PycharmProjects\AcousticDrivenGeneration\data tinyx:/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/
+```
+
+## Support
+
+- HPC help: `hpc-support@fau.de`
+- SSH debug: `ssh -vv nhr-jump`
+- **Alex** / extra GPU capacity: separate application — Tier3 uses **TinyGPU**, not `alex.nhr.fau.de` by default
