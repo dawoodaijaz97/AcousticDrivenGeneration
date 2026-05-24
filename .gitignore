@@ -1,4 +1,8 @@
 .idea/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
 main/_processed_smoke/
 main/_processed_smoke2/
 path/

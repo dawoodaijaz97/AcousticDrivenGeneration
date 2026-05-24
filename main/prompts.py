@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 # Default prefix used for S0–S5, B0/B4, L0/L4 (Phase 0–1 runs).
- DEFAULT_TASK_PREFIX = (
+DEFAULT_TASK_PREFIX = (
     "generate mFDA clinical speech report from acoustic biomarkers: "
 )
 
