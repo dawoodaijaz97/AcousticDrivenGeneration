@@ -164,6 +164,7 @@ python -m main.prepare --help
 | `--save-tokenized-dir` | `<output-dir>/tokenized` | output dir for `DatasetDict.save_to_disk` |
 | `--max-source-length` | `256` | encoder truncation/padding length |
 | `--max-target-length` | `512` | decoder truncation/padding length |
+| `--prompt-style {default,flan-paper}` | `default` | encoder task prefix; `flan-paper` = Phase 2 / B5 (`Generate a report for:`) |
 
 ### 4. If `python` is not the conda interpreter
 

@@ -12,6 +12,7 @@ from main.io import (
     write_processed_splits,
 )
 from main.paths import repair_shell_collapsed_path, repo_root, resolve_under_repo
+from main.prompts import resolve_prompt_style
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -66,6 +67,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--max-source-length", type=int, default=256)
     p.add_argument("--max-target-length", type=int, default=512)
     p.add_argument(
+        "--prompt-style",
+        choices=("default", "flan-paper"),
+        default="default",
+        help=(
+            "Encoder task prefix: default = mFDA biomarker instruction; "
+            "flan-paper = 'Generate a report for:' (Phase 2 / B5)."
+        ),
+    )
+    p.add_argument(
         "--lm-studio-base-url",
         type=str,
         default=None,
@@ -101,6 +111,9 @@ def main(argv: list[str] | None = None) -> int:
     out_dir = resolve_under_repo(args.output_dir, root)
     _log(f"repo_root        = {root}")
     _log(f"train_size       = {train_size}")
+    _log(f"prompt_style     = {args.prompt_style}")
+    task_prefix = resolve_prompt_style(args.prompt_style)
+    _log(f"task_prefix      = {task_prefix!r}")
     _log(f"output_dir       = {out_dir}")
 
     _log("loading splits via etl ...")
@@ -121,6 +134,18 @@ def main(argv: list[str] | None = None) -> int:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(summaries, indent=2), encoding="utf-8")
     _log(f"wrote summaries  -> {summary_path}")
+
+    prepare_config = {
+        "train_size": train_size,
+        "prompt_style": args.prompt_style,
+        "task_prefix": task_prefix,
+        "max_source_length": args.max_source_length,
+        "max_target_length": args.max_target_length,
+        "tokenizer_model": args.tokenizer_model if args.tokenize else None,
+    }
+    config_path = out_dir / "prepare_config.json"
+    config_path.write_text(json.dumps(prepare_config, indent=2), encoding="utf-8")
+    _log(f"wrote prepare_config -> {config_path}")
 
     if args.lm_studio_base_url:
         lm_payload = {
@@ -151,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
         _log(f"tokenized_dir    = {tok_dir}")
 
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_model)
-        ddict = dataframe_splits_to_dataset_dict(splits)
+        ddict = dataframe_splits_to_dataset_dict(splits, task_prefix=task_prefix)
         tok_dict = tokenize_dataset_dict(
             ddict,
             tokenizer,
