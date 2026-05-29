@@ -1,0 +1,13 @@
+{
+  "test_metrics": {
+    "test_loss": 0.200177863240242,
+    "test_runtime": 0.807,
+    "test_samples_per_second": 118.955,
+    "test_steps_per_second": 14.869,
+    "epoch": 0.00800832866180828
+  },
+  "test_rows": 96,
+  "tokenized_dir": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/data/processed/flan-t5-small/100k/tokenized",
+  "output_dir": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/runs/flan-t5-small/100k-debug",
+  "model_name": "/home/woody/iwi5/iwi5439h/models/flan-t5-small"
+}
