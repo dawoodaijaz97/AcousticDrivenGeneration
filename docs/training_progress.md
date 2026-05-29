@@ -73,6 +73,42 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 - **Large:** **`5e-4` ≈ tie** on overall AVG (**0.500** vs **0.500**). ROUGE-L slightly up at 5e-4; BLEU and HC BLEU slightly down. **Prefer `3e-4` (L0)** for large unless combined with another change (prompt, epochs).
 - **Small @ 100k (S4 vs S5 vs S0):** **S4 (`5e-4`)** is the clear winner — AVG **0.437** vs S0 **0.362** (+**0.075**); HC BLEU **0.277** vs **0.117**; beats S0 on every decode metric. **S5 (`3e-4` @ 100k)** underperforms S0 (**AVG 0.344**) and S4 — **do not use 3e-4 at full 100k** despite S2 winning HC BLEU at **10k**. **10k trends do not fully transfer:** S3 (**0.459**) still edges S4 on AVG (more data ≠ better than tuned short run for this metric). **Best small config for reporting: S4** (`runs/flan-t5-small/100k-lr5e4`).
 
+### Phase 2 sequence length audit (B5 data, 2026-05-29)
+
+Token-length check on `100k` splits with **`flan-paper`** prefix and **`flan-t5-base`** tokenizer (`truncation=False`). B5 prepare caps: **`max_source_length=256`**, **`max_target_length=512`**.
+
+| Split | Source tokens (max) | Target tokens (max) | `source > 256` | `target > 512` |
+|-------|---------------------|---------------------|----------------|----------------|
+| train | 51 | 173 | 0% | 0% |
+| val   | 51 | 169 | 0% | 0% |
+| test  | 51 | 147 | 0% | 0% |
+
+- **No silent truncation** at current caps; longest targets (~173 tokens) are well below 512.
+- **No re-prepare / re-train** for length (128/384/768 not needed). Same `input_text` width applies to small/base/large.
+
+### Phase 3 decode sweep (B5, 2026-05-29)
+
+**Checkpoint comparison** (`final_model` vs saved steps, beam 3, `max_new_tokens=512`, `no_repeat_ngram=2`):
+
+| Weights | AVG | BLEU |
+|---------|-----|------|
+| **`final_model`** | **0.5285** | 0.3693 |
+| `checkpoint-74922` | 0.5282 | 0.3693 |
+| `checkpoint-70000` | 0.5255 | 0.3699 |
+
+Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) but **`final_model`** edges it on decode AVG — **do not pick checkpoints by val loss alone**.
+
+**Beam sweep** on **`final_model`**:
+
+| `--num-beams` | AVG | BLEU |
+|---------------|-----|------|
+| 1 | 0.5214 | 0.3740 |
+| **3** | **0.5285** | **0.3693** |
+| 5 | 0.5173 | 0.3597 |
+
+- **Reporting config unchanged:** `runs/flan-t5-base/100k-flan-paper/final_model`, beam **3** (matches original **B5** AVG **0.529** within rounding).
+- **Artifacts:** `test_decode_metrics_final_model.json`, `test_decode_metrics_checkpoint-{70000,74922}.json`, `test_decode_metrics_beam{1,5}.json`; plot `runs/flan-t5-base/training_compare_b4_b5.png`.
+
 ### Phase 2 prompt (B5 — `flan-paper` vs B4 — default)
 
 - **B5** (`Generate a report for:`) is a **modest win** over **B4** on decode: AVG **0.529** vs **0.522** (+**0.007**); BLEU **0.369** vs **0.351**; ROUGE-L **0.510** vs **0.499**; BERT **0.819** vs **0.816**. ROUGE-2 slightly lower (**0.360** vs **0.362**).
@@ -93,7 +129,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. **B5** done — optional **max_source_length** audit, second prompt variant, or **beam/checkpoint sweep** on **B5**. Consider **flan-paper** on **S4** only if you need a stronger small model.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Phase 3 decode sweep **closed** (2026-05-29). **Next:** Phase 2 prompt variant — **category hints** in prefix (re-tokenize + train on base **B5** recipe). **flan-paper** on **S4** only if you need a stronger small model.
 
 ---
 
@@ -112,4 +148,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated from `runs/**/test_*.json`. Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-05-29 (length + Phase 3 decode sweep). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*

@@ -13,7 +13,7 @@
 
 **Related:** [train.md](train.md), [eval-decode.md](eval-decode.md), [data-pipeline.md](data-pipeline.md), [paper-overview.md](paper-overview.md), [hpc-commands.md](hpc-commands.md) (queue, `salloc`, env, `scp`).
 
-**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: see **B4** in [training_progress.md](training_progress.md).
+**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: see **B5** in [training_progress.md](training_progress.md).
 
 **Best small @ 100k:** **S4** (`5e-4`, AVG **0.437**) — see [training_progress.md](training_progress.md). **S5** (`3e-4` @ 100k) completed but **below S0**; no further small LR runs planned.
 
@@ -30,7 +30,7 @@
 - [x] Decode eval on real test (`main.eval_decode`, beam 3)
 - [x] Log PD vs HC in decode JSON (`by_group`)
 - [x] Use [training_progress.md](training_progress.md) as the results log (append rows after each eval)
-- [ ] Compare **checkpoints** vs `final_model` (BLEU may differ from `eval_val_loss` best step)
+- [x] Compare **checkpoints** vs `final_model` on **B5** (2026-05-29; use `final_model`, not val-loss step)
 - [ ] Optional: wandb / tensorboard (`--report-to`)
 - [ ] Per-category keyword/slot checks on decoded text
 - [ ] Wire `compute_metrics` + `--predict-with-generate` in `main/train.py` (medium priority)
@@ -43,7 +43,7 @@
 - [x] Slurm script for 100k @ 3e-4 (`scripts/hpc/train_flan_t5_small_100k_lr3e4_a100.slurm`)
 - [x] **S4** — 100k @ 5e-4 trained + `eval_decode` logged (**best small @ 100k**)
 - [x] **S5** — 100k @ 3e-4 trained + `eval_decode` logged (worse than S0 — closed)
-- [ ] Phase 2 prompt / `max_source_length` on **B4** (primary); optional small S4 only if time
+- [ ] Phase 2 prompt variants (category hints, etc.); optional **flan-paper** on **S4** only if time
 - [ ] Phase 3 beam sweep on frozen small checkpoint
 - [ ] Phase 4 LoRA / `google-t5/t5-small` comparison (if plateau)
 
@@ -52,8 +52,8 @@
 - [x] **B0** — 100k, LR 3e-4 (AVG **0.395**)
 - [x] **B4** — 100k, LR 5e-4 (AVG **0.522**)
 - [x] **B5** — Flan paper prefix (`--prompt-style flan-paper`); trained + eval logged (**AVG 0.529**, beats B4)
-- [ ] Phase 2 — `max_source_length` audit (128 / 256 / 384)
-- [ ] Phase 3 — beam / length sweep on **B4** checkpoint (no retrain)
+- [x] Phase 2 — `max_source_length` / `max_target_length` audit on **B5** data (2026-05-29; keep 256/512)
+- [x] Phase 3 — beam / checkpoint sweep on **B5** (2026-05-29; keep `final_model` + beam 3)
 - [ ] Label smoothing / weight-decay ablations (if needed after prompt)
 
 ### Model size — Flan-T5-large
@@ -98,14 +98,14 @@
 - [x] **B5** — Flan paper prefix `Generate a report for:` (`--prompt-style flan-paper`)
 - [ ] Category hints in prefix (seven mFDA categories)
 - [ ] Numeric formatting / category labels in feature string
-- [ ] `max_source_length` — confirm no silent truncation
-- [ ] Re-prepare → re-train **B4** recipe on best prompt (base first) — **B5** train: `scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm`
+- [x] `max_source_length` / `max_target_length` — no silent truncation at 256/512 (see [training_progress.md](training_progress.md))
+- [x] Re-prepare → re-train **B4** recipe on **flan-paper** prompt — **B5** (`scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm`)
 
 ### Phase 3 — Decoding and checkpoints (cheap)
 
-- [ ] Beam 1 vs 3 vs 5 on **B4** `final_model`
-- [ ] Best `checkpoint-*` vs `final_model` vs best `eval_val_loss` step
-- [ ] Document decode settings beside each `test_decode_metrics.json`
+- [x] Beam 1 vs 3 vs 5 on **B5** `final_model` — beam **3** best AVG (**0.5285**)
+- [x] Best `checkpoint-*` vs `final_model` — **`final_model`** best; step 74922 ≈ tie; 70000 worse
+- [x] Decode settings documented in [training_progress.md](training_progress.md) (beam 3, max 512, ngram 2)
 
 ### Phase 4 — Efficiency (if quality plateaus)
 
@@ -124,7 +124,7 @@
 | Standard decode eval after each promising run | [x] |
 | Log PD vs HC separately | [x] |
 | Use decode metrics to select configs (not val loss alone) | [x] |
-| Checkpoint comparison | [ ] |
+| Checkpoint comparison | [x] (B5; `final_model`) |
 | Training-time generation metrics | [ ] |
 
 ### B. Training hyperparameters
@@ -144,7 +144,7 @@
 | Flan paper prefix (B5) | [x] |
 | Category hints in prefix | [ ] |
 | Numeric formatting | [ ] |
-| `max_source_length` | [ ] |
+| `max_source_length` / `max_target_length` audit | [x] (B5 data; 256/512 OK) |
 
 ### D. Data and splits
 
@@ -169,7 +169,7 @@
 
 | Knob | Status |
 |------|--------|
-| Beam size sweep | [ ] (default beam 3 in eval) |
+| Beam size sweep | [x] (B5: beam 3 best; see training_progress) |
 | `max_new_tokens` ~512 | [x] |
 | `no_repeat_ngram` 2 | [x] (paper-aligned in eval) |
 
@@ -208,9 +208,10 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 ## Next actions (immediate)
 
 1. [x] **B5** complete — logged in [training_progress.md](training_progress.md).
-2. [ ] **`max_source_length`** audit on B5 tokenized data.
-3. [ ] Optional beam / checkpoint sweep on **B5** `final_model`.
-4. [ ] Plot: `runs/flan-t5-base/100k-lr5e4` vs `100k-flan-paper`.
+2. [x] **`max_source_length` / `max_target_length`** audit on B5 data — 0% truncated; keep 256/512.
+3. [x] Beam / checkpoint sweep on **B5** — keep **`final_model`**, beam **3** ([training_progress.md](training_progress.md)).
+4. [x] Plot: `runs/flan-t5-base/training_compare_b4_b5.png`.
+5. [ ] **Next:** category hints in prefix (re-tokenize + train → **B6**).
 
 ---
 
@@ -299,4 +300,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-05-23. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-05-29. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
