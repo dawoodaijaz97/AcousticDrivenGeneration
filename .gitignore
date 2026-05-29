@@ -7,4 +7,9 @@ main/_processed_smoke/
 main/_processed_smoke2/
 path/
 /data
-/runs
+
+# Training outputs: ignore all under runs/ except small metric JSONs (sync via git).
+/runs/**
+!/runs/**/
+!/runs/**/test_decode_metrics.json
+!/runs/**/test_eval.json

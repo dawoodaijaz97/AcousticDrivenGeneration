@@ -98,7 +98,7 @@ export TRANSFORMERS_OFFLINE=1
 
 Examples: `data/processed/flan-t5-small/100k/tokenized`, `runs/flan-t5-small/100k/`
 
-`runs/` is gitignored. Match **`--tokenizer-model`** at prepare with **`--model-name`** at train.
+`runs/` is mostly gitignored; **`test_decode_metrics.json`** and **`test_eval.json`** are tracked for git sync. Match **`--tokenizer-model`** at prepare with **`--model-name`** at train.
 
 ## Prepare (CPU — `tinyx` or Woody `sbatch`)
 

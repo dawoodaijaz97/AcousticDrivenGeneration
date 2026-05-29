@@ -1,0 +1,13 @@
+{
+  "test_metrics": {
+    "test_loss": 1.074942946434021,
+    "test_runtime": 1.7017,
+    "test_samples_per_second": 56.415,
+    "test_steps_per_second": 7.052,
+    "epoch": 3.0
+  },
+  "test_rows": 96,
+  "tokenized_dir": "C:\\Users\\dawoo\\PycharmProjects\\AcousticDrivenGeneration\\data\\processed\\100k\\tokenized",
+  "output_dir": "C:\\Users\\dawoo\\PycharmProjects\\AcousticDrivenGeneration\\runs\\100k\\flan-t5-small-baseline",
+  "model_name": "google/flan-t5-small"
+}

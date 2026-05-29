@@ -11,7 +11,7 @@
 3. **Log metrics** in [training_progress.md](training_progress.md) (new table row + conclusions if useful).
 4. **Mark `[x]`** on the matching task and experiment row in this file.
 
-**Related:** [train.md](train.md), [eval-decode.md](eval-decode.md), [data-pipeline.md](data-pipeline.md), [paper-overview.md](paper-overview.md).
+**Related:** [train.md](train.md), [eval-decode.md](eval-decode.md), [data-pipeline.md](data-pipeline.md), [paper-overview.md](paper-overview.md), [hpc-commands.md](hpc-commands.md) (queue, `salloc`, env, `scp`).
 
 **Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: see **B4** in [training_progress.md](training_progress.md).
 

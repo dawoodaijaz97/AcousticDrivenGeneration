@@ -4,7 +4,7 @@
 
 For the upstream pipeline (splits, prompts, tokenization), see [data-pipeline.md](data-pipeline.md).
 
-For the improvement checklist (all Flan-T5 sizes), see [Model Improvement Plan.md](Model%20Improvement%20Plan.md).
+For the improvement checklist (all Flan-T5 sizes), see [Model Improvement Plan.md](Model%20Improvement%20Plan.md). For TinyGPU login, queue, interactive GPU, and `scp`, see [hpc-commands.md](hpc-commands.md).
 
 ## Prerequisites
 
