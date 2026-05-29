@@ -8,9 +8,16 @@ DEFAULT_TASK_PREFIX = (
 # Flan-T5 fine-tune style prefix (paper / Phase 2 — experiment B5).
 FLAN_PAPER_TASK_PREFIX = "Generate a report for:"
 
+# Flan-T5 Phase 2 variant (B6): explicit mFDA category hints in prefix.
+FLAN_PAPER_CATEGORIES_TASK_PREFIX = (
+    "Generate a report for the following mFDA categories: "
+    "breathing, lips, larynx, palate, monotonicity, tongue, intelligibility."
+)
+
 PROMPT_STYLES: dict[str, str] = {
     "default": DEFAULT_TASK_PREFIX,
     "flan-paper": FLAN_PAPER_TASK_PREFIX,
+    "flan-paper-categories": FLAN_PAPER_CATEGORIES_TASK_PREFIX,
 }
 
 

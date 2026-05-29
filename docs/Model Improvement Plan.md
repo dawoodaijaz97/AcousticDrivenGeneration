@@ -96,7 +96,7 @@
 ### Phase 2 — Prompt and input (re-tokenize required)
 
 - [x] **B5** — Flan paper prefix `Generate a report for:` (`--prompt-style flan-paper`)
-- [ ] Category hints in prefix (seven mFDA categories)
+- [ ] Category hints in prefix (seven mFDA categories; run **B6** with `--prompt-style flan-paper-categories`)
 - [ ] Numeric formatting / category labels in feature string
 - [x] `max_source_length` / `max_target_length` — no silent truncation at 256/512 (see [training_progress.md](training_progress.md))
 - [x] Re-prepare → re-train **B4** recipe on **flan-paper** prompt — **B5** (`scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm`)
@@ -142,7 +142,7 @@
 | Experiment | Status |
 |------------|--------|
 | Flan paper prefix (B5) | [x] |
-| Category hints in prefix | [ ] |
+| Category hints in prefix (B6 scaffold ready) | [ ] |
 | Numeric formatting | [ ] |
 | `max_source_length` / `max_target_length` audit | [x] (B5 data; 256/512 OK) |
 
@@ -192,6 +192,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **L0** | flan-t5-large | 100k | default | 3e-4 | [x] | `runs/flan-t5-large/100k` | Large reference |
 | **L4** | flan-t5-large | 100k | default | 5e-4 | [x] | `runs/flan-t5-large/100k-lr5e4` | ≈ L0 |
 | **B5** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper` | **Best overall** AVG **0.529** (+0.007 vs B4) |
+| **B6** | flan-t5-base | 100k | flan-paper-categories | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-categories` | Phase 2 category-hint prefix variant |
 
 ---
 
@@ -211,7 +212,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 2. [x] **`max_source_length` / `max_target_length`** audit on B5 data — 0% truncated; keep 256/512.
 3. [x] Beam / checkpoint sweep on **B5** — keep **`final_model`**, beam **3** ([training_progress.md](training_progress.md)).
 4. [x] Plot: `runs/flan-t5-base/training_compare_b4_b5.png`.
-5. [ ] **Next:** category hints in prefix (re-tokenize + train → **B6**).
+5. [ ] **Next:** launch **B6** category-hints run (re-tokenize + train + decode eval).
 
 ---
 
@@ -253,6 +254,45 @@ python -m main.eval_decode \
   --model-path runs/flan-t5-base/100k-flan-paper/final_model \
   --tokenizer-model $WORK/models/flan-t5-base \
   --output-json runs/flan-t5-base/100k-flan-paper/test_decode_metrics.json \
+  --batch-size 8 --seed 42
+```
+
+**B6 prepare (CPU — category-hint prefix):**
+
+```bash
+cd $WORK/AcousticDrivenGeneration
+conda activate acoustic
+module load python
+export HF_HOME=$WORK/huggingface
+export http_proxy=http://proxy.nhr.fau.de:80
+export https_proxy=http://proxy.nhr.fau.de:80
+
+python -m main.prepare \
+  --output-dir data/processed/flan-t5-base/100k-flan-paper-categories \
+  --train-size 100k --tokenize \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --prompt-style flan-paper-categories
+```
+
+**B6 train (A100 — Slurm only):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_100k_flan_paper_categories_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_100k_flan_paper_categories_a100.slurm
+```
+
+**B6 decode eval (GPU — interactive, after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper-categories/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-categories/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-categories/test_decode_metrics.json \
   --batch-size 8 --seed 42
 ```
 
