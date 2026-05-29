@@ -17,7 +17,7 @@
 
 **Best small @ 100k:** **S4** (`5e-4`, AVG **0.437**) — see [training_progress.md](training_progress.md). **S5** (`3e-4` @ 100k) completed but **below S0**; no further small LR runs planned.
 
-**Phase 2 in progress:** **B5** — flan-t5-base, 100k, **`flan-paper`** prompt, LR **5e-4** (same hyperparameters as **B4**). Artifacts: `data/processed/flan-t5-base/100k-flan-paper/`, `runs/flan-t5-base/100k-flan-paper/`.
+**Best run:** **B5** — flan-t5-base, **`flan-paper`** prompt, LR **5e-4**, AVG **0.529** (see [training_progress.md](training_progress.md)).
 
 ---
 
@@ -51,7 +51,7 @@
 
 - [x] **B0** — 100k, LR 3e-4 (AVG **0.395**)
 - [x] **B4** — 100k, LR 5e-4 (AVG **0.522**)
-- [ ] **B5** — Flan paper prefix (`--prompt-style flan-paper`); re-prepare + re-train with **B4** hyperparameters
+- [x] **B5** — Flan paper prefix (`--prompt-style flan-paper`); trained + eval logged (**AVG 0.529**, beats B4)
 - [ ] Phase 2 — `max_source_length` audit (128 / 256 / 384)
 - [ ] Phase 3 — beam / length sweep on **B4** checkpoint (no retrain)
 - [ ] Label smoothing / weight-decay ablations (if needed after prompt)
@@ -95,7 +95,7 @@
 
 ### Phase 2 — Prompt and input (re-tokenize required)
 
-- [ ] **B5** — Flan paper prefix `Generate a report for:` (code: `--prompt-style flan-paper`; vs default)
+- [x] **B5** — Flan paper prefix `Generate a report for:` (`--prompt-style flan-paper`)
 - [ ] Category hints in prefix (seven mFDA categories)
 - [ ] Numeric formatting / category labels in feature string
 - [ ] `max_source_length` — confirm no silent truncation
@@ -141,7 +141,7 @@
 
 | Experiment | Status |
 |------------|--------|
-| Flan paper prefix (B5) | [ ] in flight |
+| Flan paper prefix (B5) | [x] |
 | Category hints in prefix | [ ] |
 | Numeric formatting | [ ] |
 | `max_source_length` | [ ] |
@@ -191,7 +191,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B4** | flan-t5-base | 100k | default | 5e-4 | [x] | `runs/flan-t5-base/100k-lr5e4` | Best overall so far |
 | **L0** | flan-t5-large | 100k | default | 3e-4 | [x] | `runs/flan-t5-large/100k` | Large reference |
 | **L4** | flan-t5-large | 100k | default | 5e-4 | [x] | `runs/flan-t5-large/100k-lr5e4` | ≈ L0 |
-| **B5** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper` | Phase 2; beat B4 **0.522** |
+| **B5** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper` | **Best overall** AVG **0.529** (+0.007 vs B4) |
 
 ---
 
@@ -207,10 +207,10 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 
 ## Next actions (immediate)
 
-1. [ ] **B5 prepare** — interactive / login node (`python -m main.prepare`, see commands below).
-2. [ ] **B5 train** — `sbatch.tinygpu scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm` (after tokenized data exists).
-3. [ ] **B5 eval** — interactive GPU (`python -m main.eval_decode`, see below) → row in [training_progress.md](training_progress.md).
-4. [ ] Plot refresh / optional beam sweep on **B4**.
+1. [x] **B5** complete — logged in [training_progress.md](training_progress.md).
+2. [ ] **`max_source_length`** audit on B5 tokenized data.
+3. [ ] Optional beam / checkpoint sweep on **B5** `final_model`.
+4. [ ] Plot: `runs/flan-t5-base/100k-lr5e4` vs `100k-flan-paper`.
 
 ---
 

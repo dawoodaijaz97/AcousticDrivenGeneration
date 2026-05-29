@@ -34,12 +34,15 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | — | flan-t5-small | 1k | 3e-4 | 0.237 | 0.486 | 0.224 | 0.375 | 0.293 | 0.804 | **0.436** |
 | B0 | flan-t5-base | 100k | 3e-4 | 1.224 | 0.416 | 0.233 | 0.342 | 0.215 | 0.771 | **0.395** |
 | B4 | flan-t5-base | 100k | 5e-4 | 1.186 | 0.584 | 0.362 | 0.499 | 0.351 | 0.816 | **0.522** |
+| **B5** | flan-t5-base | 100k | 5e-4 | 1.203 | 0.586 | 0.360 | 0.510 | 0.369 | 0.819 | **0.529** |
 | L0 | flan-t5-large | 100k | 3e-4 | 0.997 | 0.566 | 0.318 | 0.461 | 0.346 | 0.810 | **0.500** |
 | L4 | flan-t5-large | 100k | 5e-4 | 1.057 | 0.568 | 0.314 | 0.482 | 0.326 | 0.812 | **0.500** |
 
 ↓ lower is better for `test_loss`; ↑ higher is better for decode metrics.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
+
+**B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
 ---
 
@@ -56,6 +59,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | — (1k) | 0.461 | 0.412 | 0.265 |
 | B0 | 0.442 | 0.345 | 0.136 |
 | B4 | 0.489 | 0.555 | 0.378 |
+| **B5** | 0.519 | 0.538 | 0.379 |
 | L0 | 0.515 | 0.484 | 0.328 |
 | L4 | 0.504 | 0.497 | 0.316 |
 
@@ -69,11 +73,18 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 - **Large:** **`5e-4` ≈ tie** on overall AVG (**0.500** vs **0.500**). ROUGE-L slightly up at 5e-4; BLEU and HC BLEU slightly down. **Prefer `3e-4` (L0)** for large unless combined with another change (prompt, epochs).
 - **Small @ 100k (S4 vs S5 vs S0):** **S4 (`5e-4`)** is the clear winner — AVG **0.437** vs S0 **0.362** (+**0.075**); HC BLEU **0.277** vs **0.117**; beats S0 on every decode metric. **S5 (`3e-4` @ 100k)** underperforms S0 (**AVG 0.344**) and S4 — **do not use 3e-4 at full 100k** despite S2 winning HC BLEU at **10k**. **10k trends do not fully transfer:** S3 (**0.459**) still edges S4 on AVG (more data ≠ better than tuned short run for this metric). **Best small config for reporting: S4** (`runs/flan-t5-small/100k-lr5e4`).
 
+### Phase 2 prompt (B5 — `flan-paper` vs B4 — default)
+
+- **B5** (`Generate a report for:`) is a **modest win** over **B4** on decode: AVG **0.529** vs **0.522** (+**0.007**); BLEU **0.369** vs **0.351**; ROUGE-L **0.510** vs **0.499**; BERT **0.819** vs **0.816**. ROUGE-2 slightly lower (**0.360** vs **0.362**).
+- **By group:** **PD** AVG **0.519** vs B4 **0.489** (+0.030); **HC** AVG **0.538** vs B4 **0.555** (−0.017) — paper-style prefix helps PD more than HC on this run. HC BLEU ≈ tie (**0.379** vs **0.378**).
+- **`test_loss`** slightly higher on B5 (**1.203** vs **1.186**); again, decode metrics are what improved.
+- **New best overall:** **B5** — use `runs/flan-t5-base/100k-flan-paper` for reporting until a later experiment beats **0.529**.
+
 ### Model size
 
-- **Best run to date:** **B4 — flan-t5-base @ 5e-4** (**AVG 0.522**).
-- **Best small @ 100k:** **S4** (**AVG 0.437**); still well below **B4** — next quality push is **Phase 2 on base (B4)**, not more small LR tuning.
-- **Large (L0/L4)** ~**0.500** — above **S4 (0.437)** and **S0 (0.362)** but below tuned **base**.
+- **Best run to date:** **B5 — flan-t5-base @ 5e-4, flan-paper prompt** (**AVG 0.529**).
+- **Best small @ 100k:** **S4** (**AVG 0.437**).
+- **Large (L0/L4)** ~**0.500** — below **B5**.
 
 ### `test_loss` vs generation metrics
 
@@ -82,7 +93,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Small **100k LR promotion done** (use **S4**). **Phase 2 prompt / `max_source_length` on B4** is the main next experiment for decode gains.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. **B5** done — optional **max_source_length** audit, second prompt variant, or **beam/checkpoint sweep** on **B5**. Consider **flan-paper** on **S4** only if you need a stronger small model.
 
 ---
 
@@ -93,6 +104,7 @@ See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Small **100k LR
 **Comparison figures (decode bars need `test_decode_metrics.json` in each run folder):**
 
 ```bash
+python -m main.plot_training_runs runs/flan-t5-base/100k-lr5e4 runs/flan-t5-base/100k-flan-paper --output runs/flan-t5-base/training_compare_b4_b5.png
 python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/flan-t5-base/training_compare.png
 python -m main.plot_training_runs --runs-parent runs/flan-t5-large --output runs/flan-t5-large/training_compare.png
 python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100k-lr5e4 runs/flan-t5-small/100k-lr3e4 runs/flan-t5-small/10k-lr5e4 runs/flan-t5-small/10k-lr3e4 runs/flan-t5-small/10k-lr1e4 --output runs/flan-t5-small/training_compare.png

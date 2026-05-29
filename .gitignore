@@ -13,3 +13,4 @@ path/
 !/runs/**/
 !/runs/**/test_decode_metrics.json
 !/runs/**/test_eval.json
+.env
