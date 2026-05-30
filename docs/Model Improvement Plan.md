@@ -96,7 +96,7 @@
 ### Phase 2 — Prompt and input (re-tokenize required)
 
 - [x] **B5** — Flan paper prefix `Generate a report for:` (`--prompt-style flan-paper`)
-- [ ] Category hints in prefix (seven mFDA categories; run **B6** with `--prompt-style flan-paper-categories`)
+- [x] Category hints in prefix (seven mFDA categories; **B6** completed 2026-05-30, below B5)
 - [ ] Numeric formatting / category labels in feature string
 - [x] `max_source_length` / `max_target_length` — no silent truncation at 256/512 (see [training_progress.md](training_progress.md))
 - [x] Re-prepare → re-train **B4** recipe on **flan-paper** prompt — **B5** (`scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm`)
@@ -142,7 +142,7 @@
 | Experiment | Status |
 |------------|--------|
 | Flan paper prefix (B5) | [x] |
-| Category hints in prefix (B6 scaffold ready) | [ ] |
+| Category hints in prefix (B6 completed; below B5) | [x] |
 | Numeric formatting | [ ] |
 | `max_source_length` / `max_target_length` audit | [x] (B5 data; 256/512 OK) |
 
@@ -192,7 +192,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **L0** | flan-t5-large | 100k | default | 3e-4 | [x] | `runs/flan-t5-large/100k` | Large reference |
 | **L4** | flan-t5-large | 100k | default | 5e-4 | [x] | `runs/flan-t5-large/100k-lr5e4` | ≈ L0 |
 | **B5** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper` | **Best overall** AVG **0.529** (+0.007 vs B4) |
-| **B6** | flan-t5-base | 100k | flan-paper-categories | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-categories` | Phase 2 category-hint prefix variant |
+| **B6** | flan-t5-base | 100k | flan-paper-categories | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-categories` | Completed; AVG **0.509** (below B5 **0.529**) |
 
 ---
 
@@ -212,7 +212,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 2. [x] **`max_source_length` / `max_target_length`** audit on B5 data — 0% truncated; keep 256/512.
 3. [x] Beam / checkpoint sweep on **B5** — keep **`final_model`**, beam **3** ([training_progress.md](training_progress.md)).
 4. [x] Plot: `runs/flan-t5-base/training_compare_b4_b5.png`.
-5. [ ] **Next:** launch **B6** category-hints run (re-tokenize + train + decode eval).
+5. [x] **B6** category-hints run complete (re-tokenize + train + decode eval) — did not beat B5.
+6. [ ] **Next:** numeric formatting / category labels variant (re-tokenize + train → **B7**).
 
 ---
 
@@ -340,4 +341,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-05-29. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-05-30. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
