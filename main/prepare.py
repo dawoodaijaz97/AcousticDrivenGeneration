@@ -68,12 +68,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--max-target-length", type=int, default=512)
     p.add_argument(
         "--prompt-style",
-        choices=("default", "flan-paper", "flan-paper-categories"),
+        choices=("default", "flan-paper", "flan-paper-categories", "flan-paper-numeric-labels"),
         default="default",
         help=(
             "Encoder task prefix: default = mFDA biomarker instruction; "
             "flan-paper = 'Generate a report for:' (Phase 2 / B5); "
-            "flan-paper-categories = paper prefix + explicit seven mFDA category hints (Phase 2 / B6)."
+            "flan-paper-categories = paper prefix + explicit seven mFDA category hints (Phase 2 / B6); "
+            "flan-paper-numeric-labels = paper prefix + deterministic key/value formatting "
+            "for the seven categories (Phase 2 / B7)."
         ),
     )
     p.add_argument(
@@ -177,7 +179,11 @@ def main(argv: list[str] | None = None) -> int:
         _log(f"tokenized_dir    = {tok_dir}")
 
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_model)
-        ddict = dataframe_splits_to_dataset_dict(splits, task_prefix=task_prefix)
+        ddict = dataframe_splits_to_dataset_dict(
+            splits,
+            task_prefix=task_prefix,
+            prompt_style=args.prompt_style,
+        )
         tok_dict = tokenize_dataset_dict(
             ddict,
             tokenizer,

@@ -66,7 +66,7 @@ Optional columns (for example `sample_id`, `example_hash`) may be present; the t
 
 Upstream CSVs provide an **`Instructions`** field; [`etl/etl_lib.py`](../etl/etl_lib.py) parses **seven numeric biomarkers** in fixed order: **Breathing, Lips, Palate, Larynx, Monotonicity, Tongue, Intelligibility**. They are formatted into a single string **`input_text`** (e.g. `Breathing: … Lips: …` with stable spacing and precision).
 
-For T5-style models, [`main/prompts.py`](../main/prompts.py) prepends a task prefix to build **`source_text`** (see `--prompt-style` in `main.prepare`: **`default`** = mFDA biomarker instruction; **`flan-paper`** = `Generate a report for:`; **`flan-paper-categories`** = paper prefix + explicit seven mFDA category hints). [`main/tokenization.py`](../main/tokenization.py) tokenizes that into **`input_ids`** / **`attention_mask`** for the **encoder**.
+For T5-style models, [`main/prompts.py`](../main/prompts.py) prepends a task prefix to build **`source_text`** (see `--prompt-style` in `main.prepare`: **`default`** = mFDA biomarker instruction; **`flan-paper`** = `Generate a report for:`; **`flan-paper-categories`** = paper prefix + explicit seven mFDA category hints; **`flan-paper-numeric-labels`** = paper prefix + deterministic `Category=value` formatting for the seven biomarkers). [`main/tokenization.py`](../main/tokenization.py) tokenizes that into **`input_ids`** / **`attention_mask`** for the **encoder**.
 
 So the model does **not** consume a separate continuous feature tensor; it sees **text derived from the seven numbers** plus the prefix.
 

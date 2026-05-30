@@ -97,7 +97,7 @@
 
 - [x] **B5** — Flan paper prefix `Generate a report for:` (`--prompt-style flan-paper`)
 - [x] Category hints in prefix (seven mFDA categories; **B6** completed 2026-05-30, below B5)
-- [ ] Numeric formatting / category labels in feature string
+- [ ] Numeric formatting / category labels in feature string (run **B7** with `--prompt-style flan-paper-numeric-labels`)
 - [x] `max_source_length` / `max_target_length` — no silent truncation at 256/512 (see [training_progress.md](training_progress.md))
 - [x] Re-prepare → re-train **B4** recipe on **flan-paper** prompt — **B5** (`scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm`)
 
@@ -143,7 +143,7 @@
 |------------|--------|
 | Flan paper prefix (B5) | [x] |
 | Category hints in prefix (B6 completed; below B5) | [x] |
-| Numeric formatting | [ ] |
+| Numeric formatting / category labels (B7 scaffold ready) | [ ] |
 | `max_source_length` / `max_target_length` audit | [x] (B5 data; 256/512 OK) |
 
 ### D. Data and splits
@@ -193,6 +193,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **L4** | flan-t5-large | 100k | default | 5e-4 | [x] | `runs/flan-t5-large/100k-lr5e4` | ≈ L0 |
 | **B5** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper` | **Best overall** AVG **0.529** (+0.007 vs B4) |
 | **B6** | flan-t5-base | 100k | flan-paper-categories | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-categories` | Completed; AVG **0.509** (below B5 **0.529**) |
+| **B7** | flan-t5-base | 100k | flan-paper-numeric-labels | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-numeric-labels` | Phase 2 numeric formatting / label variant |
 
 ---
 
@@ -213,7 +214,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 3. [x] Beam / checkpoint sweep on **B5** — keep **`final_model`**, beam **3** ([training_progress.md](training_progress.md)).
 4. [x] Plot: `runs/flan-t5-base/training_compare_b4_b5.png`.
 5. [x] **B6** category-hints run complete (re-tokenize + train + decode eval) — did not beat B5.
-6. [ ] **Next:** numeric formatting / category labels variant (re-tokenize + train → **B7**).
+6. [ ] **Next:** launch **B7** numeric-formatting variant (re-tokenize + train + decode eval).
 
 ---
 
@@ -294,6 +295,45 @@ python -m main.eval_decode \
   --model-path runs/flan-t5-base/100k-flan-paper-categories/final_model \
   --tokenizer-model $WORK/models/flan-t5-base \
   --output-json runs/flan-t5-base/100k-flan-paper-categories/test_decode_metrics.json \
+  --batch-size 8 --seed 42
+```
+
+**B7 prepare (CPU — numeric labels + deterministic formatting):**
+
+```bash
+cd $WORK/AcousticDrivenGeneration
+conda activate acoustic
+module load python
+export HF_HOME=$WORK/huggingface
+export http_proxy=http://proxy.nhr.fau.de:80
+export https_proxy=http://proxy.nhr.fau.de:80
+
+python -m main.prepare \
+  --output-dir data/processed/flan-t5-base/100k-flan-paper-numeric-labels \
+  --train-size 100k --tokenize \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --prompt-style flan-paper-numeric-labels
+```
+
+**B7 train (A100 — Slurm only):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_100k_flan_paper_numeric_labels_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_100k_flan_paper_numeric_labels_a100.slurm
+```
+
+**B7 decode eval (GPU — interactive, after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper-numeric-labels/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-numeric-labels/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-numeric-labels/test_decode_metrics.json \
   --batch-size 8 --seed 42
 ```
 

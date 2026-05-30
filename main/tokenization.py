@@ -11,13 +11,17 @@ def add_t5_text_columns(
     ds: Dataset,
     *,
     task_prefix: str = DEFAULT_TASK_PREFIX,
+    prompt_style: str | None = None,
     input_column: str = "input_text",
     source_column: str = "source_text",
 ) -> Dataset:
     """Add ``source_text`` for T5 encoder input while keeping raw ``input_text``."""
 
     def _map(batch: dict[str, list]) -> dict[str, list]:
-        sources = [format_t5_source(t, task_prefix=task_prefix) for t in batch[input_column]]
+        sources = [
+            format_t5_source(t, task_prefix=task_prefix, prompt_style=prompt_style)
+            for t in batch[input_column]
+        ]
         return {source_column: sources}
 
     return ds.map(_map, batched=True)
@@ -71,12 +75,17 @@ def dataframe_splits_to_dataset_dict(
     splits: dict[str, Any],
     *,
     task_prefix: str = DEFAULT_TASK_PREFIX,
+    prompt_style: str | None = None,
 ) -> DatasetDict:
     """Build a ``DatasetDict`` from pandas frames keyed by split name."""
     parts: dict[str, Dataset] = {}
     for name, df in splits.items():
         ds = Dataset.from_pandas(df, preserve_index=False)
-        parts[name] = add_t5_text_columns(ds, task_prefix=task_prefix)
+        parts[name] = add_t5_text_columns(
+            ds,
+            task_prefix=task_prefix,
+            prompt_style=prompt_style,
+        )
     return DatasetDict(parts)
 
 
