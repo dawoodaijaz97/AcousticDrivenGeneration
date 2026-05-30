@@ -54,7 +54,7 @@
 - [x] **B5** — Flan paper prefix (`--prompt-style flan-paper`); trained + eval logged (**AVG 0.529**, beats B4)
 - [x] Phase 2 — `max_source_length` / `max_target_length` audit on **B5** data (2026-05-29; keep 256/512)
 - [x] Phase 3 — beam / checkpoint sweep on **B5** (2026-05-29; keep `final_model` + beam 3)
-- [ ] Label smoothing / weight-decay ablations (if needed after prompt)
+- [ ] Label smoothing / weight-decay ablations (B8/B9 label smoothing scripts ready)
 
 ### Model size — Flan-T5-large
 
@@ -194,6 +194,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B5** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper` | **Best overall** AVG **0.529** (+0.007 vs B4) |
 | **B6** | flan-t5-base | 100k | flan-paper-categories | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-categories` | Completed; AVG **0.509** (below B5 **0.529**) |
 | **B7** | flan-t5-base | 100k | flan-paper-numeric-labels | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-numeric-labels` | Completed; AVG **0.460** (well below B5 **0.529**) |
+| **B8** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-ls005` | Label smoothing **0.05** ablation on B5 recipe |
+| **B9** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-ls010` | Label smoothing **0.10** ablation on B5 recipe |
 
 ---
 
@@ -215,7 +217,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 4. [x] Plot: `runs/flan-t5-base/training_compare_b4_b5.png`.
 5. [x] **B6** category-hints run complete (re-tokenize + train + decode eval) — did not beat B5.
 6. [x] **B7** numeric-formatting variant complete (re-tokenize + train + decode eval) — strong regression vs B5.
-7. [ ] **Next:** B5-based hyperparameter ablations (label smoothing / weight decay), keep decode config fixed.
+7. [ ] **Next:** submit **B8/B9** label-smoothing ablations on B5 tokenized data, keep decode config fixed.
 
 ---
 
@@ -335,6 +337,50 @@ python -m main.eval_decode \
   --model-path runs/flan-t5-base/100k-flan-paper-numeric-labels/final_model \
   --tokenizer-model $WORK/models/flan-t5-base \
   --output-json runs/flan-t5-base/100k-flan-paper-numeric-labels/test_decode_metrics.json \
+  --batch-size 8 --seed 42
+```
+
+**B8 train (A100 — label smoothing 0.05 on B5 tokenized data):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_100k_flan_paper_ls005_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_100k_flan_paper_ls005_a100.slurm
+```
+
+**B8 decode eval (GPU — interactive, after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-ls005/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-ls005/test_decode_metrics.json \
+  --batch-size 8 --seed 42
+```
+
+**B9 train (A100 — label smoothing 0.10 on B5 tokenized data):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_100k_flan_paper_ls010_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_100k_flan_paper_ls010_a100.slurm
+```
+
+**B9 decode eval (GPU — interactive, after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-ls010/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-ls010/test_decode_metrics.json \
   --batch-size 8 --seed 42
 ```
 

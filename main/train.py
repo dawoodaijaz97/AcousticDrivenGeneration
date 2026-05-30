@@ -52,6 +52,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--gradient-accumulation-steps", type=int, default=1)
     p.add_argument("--learning-rate", type=float, default=3e-4)
     p.add_argument("--weight-decay", type=float, default=0.01)
+    p.add_argument(
+        "--label-smoothing",
+        type=float,
+        default=0.0,
+        help="Label smoothing factor for seq2seq cross-entropy (0.0 disables smoothing).",
+    )
     p.add_argument("--warmup-ratio", type=float, default=0.1)
     p.add_argument("--logging-steps", type=int, default=100)
     p.add_argument("--eval-steps", type=int, default=500)
@@ -304,6 +310,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("Choose at most one of --cpu-only and --require-gpu.")
     if args.eval_train_max_samples < 0:
         raise SystemExit("--eval-train-max-samples must be >= 0 (0 = use full train set for train eval).")
+    if not 0.0 <= args.label_smoothing < 1.0:
+        raise SystemExit("--label-smoothing must be in [0.0, 1.0).")
 
     use_cpu = _resolve_use_cpu(args)
     _log_device_plan(use_cpu)
@@ -341,6 +349,7 @@ def main(argv: list[str] | None = None) -> int:
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
+        label_smoothing_factor=args.label_smoothing,
         warmup_ratio=args.warmup_ratio,
         logging_steps=args.logging_steps,
         eval_strategy="steps",

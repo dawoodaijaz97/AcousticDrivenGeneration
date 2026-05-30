@@ -86,7 +86,7 @@ During training, **`Seq2SeqTrainer`** evaluates on the **`val`** split every **`
 
 ### Loss (cost function)
 
-Fine-tuning uses the **default seq2seq objective** from Hugging Face: **token-level cross-entropy** (negative log-likelihood) on the decoder targets with **teacher forcing**, summed/averaged over non-padding positions (padding masked via **`-100`**). There is **no custom loss** and **no `label_smoothing`** in the current `Seq2SeqTrainingArguments`.
+Fine-tuning uses the **default seq2seq objective** from Hugging Face: **token-level cross-entropy** (negative log-likelihood) on the decoder targets with **teacher forcing**, summed/averaged over non-padding positions (padding masked via **`-100`**). You can optionally apply label smoothing via **`--label-smoothing`** (maps to `label_smoothing_factor` in `Seq2SeqTrainingArguments`; default `0.0`).
 
 **`--weight-decay`** applies **AdamW weight decay** on parameters; that is **regularization**, not the sequence prediction loss.
 
@@ -116,6 +116,7 @@ Intermediate checkpoints live directly under **`--output-dir`** (subject to **`-
 | `--gradient-accumulation-steps` | `1` | |
 | `--learning-rate` | `3e-4` | |
 | `--weight-decay` | `0.01` | |
+| `--label-smoothing` | `0.0` | Label smoothing factor in `[0.0, 1.0)`; `0.0` disables smoothing. |
 | `--warmup-ratio` | `0.1` | Warmup as a fraction of total training steps. |
 | `--logging-steps` | `100` | |
 | `--eval-steps` | `500` | Eval every N steps (clamped when `--max-steps` set). |
