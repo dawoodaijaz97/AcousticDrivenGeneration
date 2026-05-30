@@ -97,7 +97,7 @@
 
 - [x] **B5** — Flan paper prefix `Generate a report for:` (`--prompt-style flan-paper`)
 - [x] Category hints in prefix (seven mFDA categories; **B6** completed 2026-05-30, below B5)
-- [ ] Numeric formatting / category labels in feature string (run **B7** with `--prompt-style flan-paper-numeric-labels`)
+- [x] Numeric formatting / category labels in feature string (**B7** completed 2026-05-31; below B5)
 - [x] `max_source_length` / `max_target_length` — no silent truncation at 256/512 (see [training_progress.md](training_progress.md))
 - [x] Re-prepare → re-train **B4** recipe on **flan-paper** prompt — **B5** (`scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm`)
 
@@ -143,7 +143,7 @@
 |------------|--------|
 | Flan paper prefix (B5) | [x] |
 | Category hints in prefix (B6 completed; below B5) | [x] |
-| Numeric formatting / category labels (B7 scaffold ready) | [ ] |
+| Numeric formatting / category labels (B7 completed; below B5) | [x] |
 | `max_source_length` / `max_target_length` audit | [x] (B5 data; 256/512 OK) |
 
 ### D. Data and splits
@@ -193,7 +193,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **L4** | flan-t5-large | 100k | default | 5e-4 | [x] | `runs/flan-t5-large/100k-lr5e4` | ≈ L0 |
 | **B5** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper` | **Best overall** AVG **0.529** (+0.007 vs B4) |
 | **B6** | flan-t5-base | 100k | flan-paper-categories | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-categories` | Completed; AVG **0.509** (below B5 **0.529**) |
-| **B7** | flan-t5-base | 100k | flan-paper-numeric-labels | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-numeric-labels` | Phase 2 numeric formatting / label variant |
+| **B7** | flan-t5-base | 100k | flan-paper-numeric-labels | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-numeric-labels` | Completed; AVG **0.460** (well below B5 **0.529**) |
 
 ---
 
@@ -214,7 +214,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 3. [x] Beam / checkpoint sweep on **B5** — keep **`final_model`**, beam **3** ([training_progress.md](training_progress.md)).
 4. [x] Plot: `runs/flan-t5-base/training_compare_b4_b5.png`.
 5. [x] **B6** category-hints run complete (re-tokenize + train + decode eval) — did not beat B5.
-6. [ ] **Next:** launch **B7** numeric-formatting variant (re-tokenize + train + decode eval).
+6. [x] **B7** numeric-formatting variant complete (re-tokenize + train + decode eval) — strong regression vs B5.
+7. [ ] **Next:** B5-based hyperparameter ablations (label smoothing / weight decay), keep decode config fixed.
 
 ---
 
@@ -381,4 +382,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-05-30. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-05-31. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*

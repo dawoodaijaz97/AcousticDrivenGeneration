@@ -35,13 +35,14 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B0 | flan-t5-base | 100k | 3e-4 | 1.224 | 0.416 | 0.233 | 0.342 | 0.215 | 0.771 | **0.395** |
 | B4 | flan-t5-base | 100k | 5e-4 | 1.186 | 0.584 | 0.362 | 0.499 | 0.351 | 0.816 | **0.522** |
 | **B5** | flan-t5-base | 100k | 5e-4 | 1.203 | 0.586 | 0.360 | 0.510 | 0.369 | 0.819 | **0.529** |
-| B6 | flan-t5-base | 100k | 5e-4 | — | 0.567 | 0.341 | 0.487 | 0.337 | 0.812 | **0.509** |
+| B6 | flan-t5-base | 100k | 5e-4 | 1.355 | 0.567 | 0.341 | 0.487 | 0.337 | 0.812 | **0.509** |
+| B7 | flan-t5-base | 100k | 5e-4 | 0.811 | 0.524 | 0.261 | 0.413 | 0.298 | 0.803 | **0.460** |
 | L0 | flan-t5-large | 100k | 3e-4 | 0.997 | 0.566 | 0.318 | 0.461 | 0.346 | 0.810 | **0.500** |
 | L4 | flan-t5-large | 100k | 5e-4 | 1.057 | 0.568 | 0.314 | 0.482 | 0.326 | 0.812 | **0.500** |
 
 ↓ lower is better for `test_loss`; ↑ higher is better for decode metrics.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -62,6 +63,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B4 | 0.489 | 0.555 | 0.378 |
 | **B5** | 0.519 | 0.538 | 0.379 |
 | B6 | 0.484 | 0.534 | 0.362 |
+| B7 | 0.497 | 0.422 | 0.252 |
 | L0 | 0.515 | 0.484 | 0.328 |
 | L4 | 0.504 | 0.497 | 0.316 |
 
@@ -123,7 +125,14 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **B6** (paper prefix + explicit seven mFDA category hints) **underperforms B5** on decode: AVG **0.509** vs **0.529** (−**0.020**), BLEU **0.337** vs **0.369** (−0.032), ROUGE-2 **0.341** vs **0.360**, ROUGE-L **0.487** vs **0.510**, BERT **0.812** vs **0.819**.
 - **By group:** **PD** AVG **0.484** vs B5 **0.519** (−0.035); **HC** AVG **0.534** vs **0.538** (−0.004); HC BLEU **0.362** vs **0.379** (−0.017).
 - B6 remains above B0 baseline but below both **B4** and **B5**; keep **B5** as the base reporting configuration.
-- `test_loss` for B6 was not captured in this run log; decode metrics are complete and sufficient for prompt comparison.
+- `test_loss` for B6 is **1.355** and aligns with the same conclusion: lower/alternate loss values do not override decode-metric selection.
+
+### Phase 2 prompt/input (B7 — `flan-paper-numeric-labels` vs B5)
+
+- **B7** (paper prefix + deterministic `Category=value` numeric formatting) is a **strong regression** vs B5 on decode: AVG **0.460** vs **0.529** (−**0.069**), BLEU **0.298** vs **0.369** (−0.071), ROUGE-2 **0.261** vs **0.360**, ROUGE-L **0.413** vs **0.510**, BERT **0.803** vs **0.819**.
+- **By group:** **PD** AVG **0.497** vs B5 **0.519** (−0.022); **HC** AVG **0.422** vs **0.538** (−0.116); HC BLEU **0.252** vs **0.379** (−0.127). Regression is concentrated on HC.
+- B7 remains above B0 baseline but is below B4/B5 and below B6. Keep **B5** as the base reporting configuration; do not promote B7.
+- `test_loss` is **0.811** on B7, but decode quality is worse, reinforcing that prompt choices must be selected on generation metrics.
 
 ### Model size
 
@@ -138,7 +147,7 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Phase 3 decode sweep is closed; B6 prompt variant is now logged and did not beat B5. **Next:** Phase 2 prompt/input iteration — **numeric formatting / category labels** (re-tokenize + train on base B5 recipe). Keep **B5** as the reporting baseline unless a later run beats AVG **0.529**.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Phase 2 prompt variants B6/B7 are now logged and both are below B5. **Next:** move to Phase 1/3-compatible hyperparameter ablations on the B5 recipe (label smoothing / weight decay / optional training-step tuning), while keeping decode settings fixed (beam 3, max 512, ngram 2).
 
 ---
 
@@ -157,4 +166,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-05-30 (B6 category-hint prompt run). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-05-31 (B7 numeric-label formatting run). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
