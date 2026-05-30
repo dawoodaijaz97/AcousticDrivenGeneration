@@ -1,0 +1,13 @@
+{
+  "test_metrics": {
+    "test_loss": 0.8107008337974548,
+    "test_runtime": 1.6698,
+    "test_samples_per_second": 57.491,
+    "test_steps_per_second": 14.373,
+    "epoch": 3.0
+  },
+  "test_rows": 96,
+  "tokenized_dir": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/data/processed/flan-t5-base/100k-flan-paper-numeric-labels/tokenized",
+  "output_dir": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/runs/flan-t5-base/100k-flan-paper-numeric-labels",
+  "model_name": "/home/woody/iwi5/iwi5439h/models/flan-t5-base"
+}
