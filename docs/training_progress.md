@@ -37,12 +37,15 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | **B5** | flan-t5-base | 100k | 5e-4 | 1.203 | 0.586 | 0.360 | 0.510 | 0.369 | 0.819 | **0.529** |
 | B6 | flan-t5-base | 100k | 5e-4 | 1.355 | 0.567 | 0.341 | 0.487 | 0.337 | 0.812 | **0.509** |
 | B7 | flan-t5-base | 100k | 5e-4 | 0.811 | 0.524 | 0.261 | 0.413 | 0.298 | 0.803 | **0.460** |
+| B8 | flan-t5-base | 100k | 5e-4 | 1.127 | 0.147 | 0.002 | 0.114 | 0.000 | 0.615 | **0.176** |
+| B9 | flan-t5-base | 100k | 5e-4 | 1.733 | 0.147 | 0.002 | 0.114 | 0.000 | 0.615 | **0.176** |
+| B10 | flan-t5-base | 100k | 5e-4 | 0.753 | 0.147 | 0.002 | 0.114 | 0.000 | 0.615 | **0.176** |
 | L0 | flan-t5-large | 100k | 3e-4 | 0.997 | 0.566 | 0.318 | 0.461 | 0.346 | 0.810 | **0.500** |
 | L4 | flan-t5-large | 100k | 5e-4 | 1.057 | 0.568 | 0.314 | 0.482 | 0.326 | 0.812 | **0.500** |
 
 ↓ lower is better for `test_loss`; ↑ higher is better for decode metrics.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -64,6 +67,9 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | **B5** | 0.519 | 0.538 | 0.379 |
 | B6 | 0.484 | 0.534 | 0.362 |
 | B7 | 0.497 | 0.422 | 0.252 |
+| B8 | 0.172 | 0.179 | 0.000 |
+| B9 | 0.172 | 0.179 | 0.000 |
+| B10 | 0.172 | 0.179 | 0.000 |
 | L0 | 0.515 | 0.484 | 0.328 |
 | L4 | 0.504 | 0.497 | 0.316 |
 
@@ -134,6 +140,12 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - B7 remains above B0 baseline but is below B4/B5 and below B6. Keep **B5** as the base reporting configuration; do not promote B7.
 - `test_loss` is **0.811** on B7, but decode quality is worse, reinforcing that prompt choices must be selected on generation metrics.
 
+### Phase 1/3 hyperparameters (B8/B9/B10 — label smoothing on B5 recipe)
+
+- **B8 (ls=0.05), B9 (ls=0.10), and B10 (ls=0.02)** all collapse to nearly identical decode outcomes: AVG ~**0.176**, BLEU ~**0.000**, ROUGE-2 ~**0.002**, far below B5 (**0.529**).
+- Group metrics also collapse similarly (PD ~0.172, HC ~0.179; HC BLEU ~0.000) across all three smoothing values.
+- Since all three runs are near-identical despite different `test_loss` values (**0.753 / 1.127 / 1.733**), treat these as **invalid for model selection** until output artifacts are re-verified against trained checkpoints.
+
 ### Model size
 
 - **Best run to date:** **B5 — flan-t5-base @ 5e-4, flan-paper prompt** (**AVG 0.529**).
@@ -147,7 +159,7 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Phase 2 prompt variants B6/B7 are now logged and both are below B5. **Next:** move to Phase 1/3-compatible hyperparameter ablations on the B5 recipe (label smoothing / weight decay / optional training-step tuning), while keeping decode settings fixed (beam 3, max 512, ngram 2).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. B8/B9/B10 decode artifacts are now logged but appear invalid for selection (near-identical collapse). **Next:** re-run one clean sanity check from a known trained checkpoint (B5 baseline decode in same environment), then continue with weight-decay ablations if sanity check matches historical B5.
 
 ---
 
@@ -166,4 +178,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-05-31 (B7 numeric-label formatting run). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-05-31 (B8/B9/B10 label-smoothing decode artifacts logged). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*

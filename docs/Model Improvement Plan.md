@@ -54,7 +54,7 @@
 - [x] **B5** — Flan paper prefix (`--prompt-style flan-paper`); trained + eval logged (**AVG 0.529**, beats B4)
 - [x] Phase 2 — `max_source_length` / `max_target_length` audit on **B5** data (2026-05-29; keep 256/512)
 - [x] Phase 3 — beam / checkpoint sweep on **B5** (2026-05-29; keep `final_model` + beam 3)
-- [ ] Label smoothing / weight-decay ablations (B8/B9 label smoothing scripts ready)
+- [x] Label smoothing / weight-decay ablations (B8/B9/B10 decode artifacts logged; marked invalid for selection pending sanity check)
 
 ### Model size — Flan-T5-large
 
@@ -135,7 +135,7 @@
 | Epochs / max-steps | [ ] | [ ] | [ ] |
 | Batch + accum | [ ] | [ ] | [ ] |
 | Warmup / weight decay | [ ] | [ ] | [ ] |
-| Label smoothing | [ ] | [ ] | [ ] |
+| Label smoothing | [x] (B8/B9/B10 logged; verify artifacts) | [ ] | [ ] |
 
 ### C. Prompt and input
 
@@ -194,9 +194,9 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B5** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper` | **Best overall** AVG **0.529** (+0.007 vs B4) |
 | **B6** | flan-t5-base | 100k | flan-paper-categories | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-categories` | Completed; AVG **0.509** (below B5 **0.529**) |
 | **B7** | flan-t5-base | 100k | flan-paper-numeric-labels | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-numeric-labels` | Completed; AVG **0.460** (well below B5 **0.529**) |
-| **B8** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-ls005` | Label smoothing **0.05** ablation on B5 recipe |
-| **B9** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-ls010` | Label smoothing **0.10** ablation on B5 recipe |
-| **B10** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-ls002` | Label smoothing **0.02** conservative ablation on B5 recipe |
+| **B8** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls005` | Logged; decode collapsed (AVG ~0.176), do not select |
+| **B9** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls010` | Logged; decode collapsed (AVG ~0.176), do not select |
+| **B10** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls002` | Logged; decode collapsed (AVG ~0.176), do not select |
 
 ---
 
@@ -218,7 +218,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 4. [x] Plot: `runs/flan-t5-base/training_compare_b4_b5.png`.
 5. [x] **B6** category-hints run complete (re-tokenize + train + decode eval) — did not beat B5.
 6. [x] **B7** numeric-formatting variant complete (re-tokenize + train + decode eval) — strong regression vs B5.
-7. [ ] **Next:** submit **B8/B9/B10** label-smoothing ablations on B5 tokenized data, keep decode config fixed.
+7. [x] **B8/B9/B10** label-smoothing runs submitted + decode artifacts logged.
+8. [ ] **Next:** run one B5 sanity decode in the same environment, then continue with weight-decay-only ablations.
 
 ---
 
