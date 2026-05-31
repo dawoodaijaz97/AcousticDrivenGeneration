@@ -140,11 +140,14 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - B7 remains above B0 baseline but is below B4/B5 and below B6. Keep **B5** as the base reporting configuration; do not promote B7.
 - `test_loss` is **0.811** on B7, but decode quality is worse, reinforcing that prompt choices must be selected on generation metrics.
 
-### Phase 1/3 hyperparameters (B8/B9/B10 — label smoothing on B5 recipe)
+### Phase 1/3 hyperparameters (B8/B9/B10 — label smoothing on B5 recipe) — confirmed real regression (2026-05-31)
 
-- **B8 (ls=0.05), B9 (ls=0.10), and B10 (ls=0.02)** all collapse to nearly identical decode outcomes: AVG ~**0.176**, BLEU ~**0.000**, ROUGE-2 ~**0.002**, far below B5 (**0.529**).
-- Group metrics also collapse similarly (PD ~0.172, HC ~0.179; HC BLEU ~0.000) across all three smoothing values.
-- Since all three runs are near-identical despite different `test_loss` values (**0.753 / 1.127 / 1.733**), treat these as **invalid for model selection** until output artifacts are re-verified against trained checkpoints.
+- **B8 (ls=0.05), B9 (ls=0.10), and B10 (ls=0.02)** all collapse to nearly identical decode outcomes: AVG ~**0.176**, BLEU ~**0.000**, ROUGE-2 ~**0.002**, far below B5 (**0.529**). Group metrics collapse similarly (PD ~0.172, HC ~0.179; HC BLEU ~0.000).
+- **Diagnosed 2026-05-31 — this is a genuine regression, NOT a harness/artifact bug:**
+  - **Harness verified:** re-decoded B5 `final_model` in the same environment → AVG **0.5285** (R-1 0.586, BLEU 0.369), reproducing historical B5 exactly. So `main.eval_decode` is healthy. Artifact: `test_decode_metrics_sanity.json`.
+  - **Training converged:** B8 (`ls005`) `trainer_state.json` shows `eval_val_loss ≈ 0.7176` (finite), all `74922` steps completed, checkpoints saved — **no NaN / no divergence**. Note `eval_train_loss ≈ eval_val_loss` and barely moves (70000 vs 74922), i.e. loss is pinned near the **label-smoothing penalty floor** and masks actual fit.
+  - **Generation is degenerate:** B8 decode `sacrebleu_precisions = [45.59, 1.89, 0.025, 0.013]` (1/2/3/4-gram %). Unigram ~46% but bigram ~2% and 4-gram ~0.01% → **word-salad** (right vocabulary, incoherent order), giving BLEU ≈ 0.
+- **Takeaway:** label smoothing flattens the output distribution enough to wreck autoregressive decoding for this T5 recipe even though teacher-forced loss looks reasonable. **Label smoothing abandoned** for flan-t5-base @ 5e-4 (all of 0.02 / 0.05 / 0.10). `test_loss` values (**0.753 / 1.127 / 1.733**) are not comparable across smoothing factors and must not be used for selection.
 
 ### Model size
 
@@ -159,7 +162,7 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. B8/B9/B10 decode artifacts are now logged but appear invalid for selection (near-identical collapse). **Next:** re-run one clean sanity check from a known trained checkpoint (B5 baseline decode in same environment), then continue with weight-decay ablations if sanity check matches historical B5.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. B8/B9/B10 label-smoothing collapse is now **diagnosed as a real regression** (harness verified via B5 sanity decode = 0.529; training converged; generation degenerate) — **label smoothing is closed**. **Next:** **B11 = B5 recipe @ 5 epochs** (base, flan-paper, 5e-4, no label smoothing) to test the untouched **epochs** lever — base `test_loss` ~1.20 and large (~0.500) underperforming base (0.529) both point to underfitting. If B11 helps, also try large @ 5 epochs, then a weight-decay-only ablation on the winner.
 
 ---
 
@@ -178,4 +181,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-05-31 (B8/B9/B10 label-smoothing decode artifacts logged). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-05-31 (B8/B9/B10 label-smoothing collapse diagnosed as real regression via B5 sanity decode; label smoothing closed, B11 5-epoch run queued). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
