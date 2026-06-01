@@ -63,7 +63,7 @@
 
 - [x] **L0** — 100k, LR 3e-4 (AVG **0.500**) — **reference large config**
 - [x] **L4** — 100k, LR 5e-4 (AVG **0.500**, ≈ tie; use L0 for comparisons)
-- [ ] **Large @ 5 epochs** — next experiment (B11 showed base underfits at 3 ep; large has most headroom)
+- [ ] **L5 — Large @ 5 epochs, flan-paper, 5e-4** (2× A100 / DDP) — next experiment (B11 showed base underfits at 3 ep; large has most headroom)
 - [ ] Phase 2 prompt experiments (only if base Phase 2 wins)
 
 ### Cross-cutting (after LR / size baselines)
@@ -205,6 +205,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B9** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls010` | ls=0.10; **closed** — real regression (AVG ~0.176, degenerate gen), do not use |
 | **B10** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls002` | ls=0.02; **closed** — real regression (AVG ~0.176, degenerate gen), do not use |
 | **B11** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep` | **New best** AVG **0.538** (5 epochs); beats B5 0.529; `test_loss` 1.094; gain concentrated on HC (0.567 vs 0.538), PD ≈ flat |
+| **L5** | flan-t5-large | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-large/100k-flan-paper-5ep` | **Next** — large @ 5 epochs (2× A100 DDP); mirrors B11 (only size differs); `train_flan_t5_large_100k_flan_paper_5ep_2gpu_a100.slurm` |
 
 ---
 
@@ -229,7 +230,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 7. [x] **B8/B9/B10** label-smoothing runs submitted + decode artifacts logged.
 8. [x] B5 sanity decode in same environment → AVG **0.5285** (harness healthy); B8 `trainer_state` converged + decode word-salad → **label smoothing closed as real regression** (see [training_progress.md](training_progress.md)).
 9. [x] **B11** (B5 recipe @ 5 epochs) trained + decoded → **new best AVG 0.538** (beats B5 0.529); logged in [training_progress.md](training_progress.md).
-10. [ ] **Next:** **large @ 5 epochs** (L0/L4 recipe, 5 epochs) — retest whether large now beats base. Then weight-decay-only ablation on the B11 recipe.
+10. [ ] **Next:** **L5 — large @ 5 epochs** (flan-paper, 5e-4, 2× A100 DDP) — retest whether large now beats base. Needs one-time prepare of large flan-paper tokenized data. Then weight-decay-only ablation on the B11 recipe.
 
 ---
 
@@ -271,6 +272,45 @@ python -m main.eval_decode \
   --model-path runs/flan-t5-base/100k-flan-paper/final_model \
   --tokenizer-model $WORK/models/flan-t5-base \
   --output-json runs/flan-t5-base/100k-flan-paper/test_decode_metrics.json \
+  --batch-size 8 --seed 42
+```
+
+**L5 prepare (CPU — large flan-paper tokenized data, one-time):**
+
+```bash
+cd $WORK/AcousticDrivenGeneration
+conda activate acoustic
+module load python
+export HF_HOME=$WORK/huggingface
+export http_proxy=http://proxy.nhr.fau.de:80
+export https_proxy=http://proxy.nhr.fau.de:80
+
+python -m main.prepare \
+  --output-dir data/processed/flan-t5-large/100k-flan-paper \
+  --train-size 100k --tokenize \
+  --tokenizer-model $WORK/models/flan-t5-large \
+  --prompt-style flan-paper
+```
+
+**L5 train (2× A100 — DDP via torchrun, 5 epochs):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_large_100k_flan_paper_5ep_2gpu_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_large_100k_flan_paper_5ep_2gpu_a100.slurm
+```
+
+**L5 decode eval (GPU — interactive, after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-large/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-large/100k-flan-paper-5ep/final_model \
+  --tokenizer-model $WORK/models/flan-t5-large \
+  --output-json runs/flan-t5-large/100k-flan-paper-5ep/test_decode_metrics.json \
   --batch-size 8 --seed 42
 ```
 
@@ -484,4 +524,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-01. B11 (epochs 3→5) is the new best (AVG 0.538, beats B5); next experiment is large @ 5 epochs. Label smoothing (B8/B9/B10) closed as a real regression. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-01. B11 (epochs 3→5) is the new best (AVG 0.538, beats B5); next experiment is L5 (large @ 5 epochs, 2× A100 DDP). Label smoothing (B8/B9/B10) closed as a real regression. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*

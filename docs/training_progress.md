@@ -173,7 +173,7 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. **B11 (5 epochs) is the new best — AVG 0.538** (beats B5 0.529), confirming underfitting at 3 epochs. Label smoothing (B8/B9/B10) is closed as a real regression. **Next:** **large @ 5 epochs** (most capacity headroom — retest whether it now beats base), then a **weight-decay-only ablation** on the B11 recipe. If large @ 5ep still trails base, the epochs gain has plateaued → move to Phase 4 (LoRA / freeze-encoder / non-Flan t5).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. **B11 (5 epochs) is the new best — AVG 0.538** (beats B5 0.529), confirming underfitting at 3 epochs. Label smoothing (B8/B9/B10) is closed as a real regression. **Next:** **L5 — large @ 5 epochs** (flan-paper, 5e-4, **2× A100 DDP** via `torchrun`; effective batch kept at 4 by `grad_accum=1` so it mirrors B11 — only model size differs). Most capacity headroom; retests whether large now beats base. Then a **weight-decay-only ablation** on the B11 recipe. If L5 still trails base, the epochs gain has plateaued → move to Phase 4 (LoRA / freeze-encoder / non-Flan t5).
 
 ---
 
