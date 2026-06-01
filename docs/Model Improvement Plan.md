@@ -17,7 +17,7 @@
 
 **Best small @ 100k:** **S4** (`5e-4`, AVG **0.437**) — see [training_progress.md](training_progress.md). **S5** (`3e-4` @ 100k) completed but **below S0**; no further small LR runs planned.
 
-**Best run:** **B5** — flan-t5-base, **`flan-paper`** prompt, LR **5e-4**, AVG **0.529** (see [training_progress.md](training_progress.md)).
+**Best run:** **B11** — flan-t5-base, **`flan-paper`** prompt, LR **5e-4**, **5 epochs**, AVG **0.538** (beats B5 0.529; see [training_progress.md](training_progress.md)).
 
 ---
 
@@ -55,18 +55,20 @@
 - [x] Phase 2 — `max_source_length` / `max_target_length` audit on **B5** data (2026-05-29; keep 256/512)
 - [x] Phase 3 — beam / checkpoint sweep on **B5** (2026-05-29; keep `final_model` + beam 3)
 - [x] Label smoothing ablation (B8/B9/B10) — **closed: confirmed real regression** (2026-05-31; harness verified via B5 sanity decode 0.529, training converged, generation degenerate). **Do not use label smoothing on this recipe.**
-- [ ] **B11** — epochs 3→5 on B5 recipe (no label smoothing) — tests underfitting hypothesis
-- [ ] Weight-decay-only ablation on the best epochs config
+- [x] **B11** — epochs 3→5 on B5 recipe (no label smoothing) — **new best AVG 0.538** (beats B5 0.529); underfitting confirmed
+- [ ] **Large @ 5 epochs** — retest whether large now beats base (most capacity headroom)
+- [ ] Weight-decay-only ablation on the B11 recipe
 
 ### Model size — Flan-T5-large
 
 - [x] **L0** — 100k, LR 3e-4 (AVG **0.500**) — **reference large config**
 - [x] **L4** — 100k, LR 5e-4 (AVG **0.500**, ≈ tie; use L0 for comparisons)
+- [ ] **Large @ 5 epochs** — next experiment (B11 showed base underfits at 3 ep; large has most headroom)
 - [ ] Phase 2 prompt experiments (only if base Phase 2 wins)
 
 ### Cross-cutting (after LR / size baselines)
 
-- [ ] Epochs / steps (3 vs 5) on best config per tier — **B11** (base) queued first
+- [x] Epochs / steps (3 vs 5) — **B11** (base) done, 5 epochs wins (0.538); large @ 5 epochs pending
 - [ ] Batch + gradient accumulation sweep
 - [ ] Warmup / weight decay / label smoothing trials
 - [ ] `--no-eval-train` wall-clock trial (one 10k run)
@@ -93,7 +95,8 @@
 - [x] Large: 100k LR comparison (**L0** vs **L4** → use **3e-4**)
 - [x] Small: **S4** / **S5** 100k complete — **use S4** (`5e-4`); see [training_progress.md](training_progress.md)
 - [x] Label smoothing trials (B8/B9/B10) — **closed: real regression, do not use** (see [training_progress.md](training_progress.md))
-- [ ] **Epochs 3→5 (B11)** on B5 recipe — next experiment
+- [x] **Epochs 3→5 (B11)** on B5 recipe — **new best AVG 0.538**
+- [ ] **Large @ 5 epochs** — next experiment
 - [ ] Extra weight-decay trials (after epochs)
 - [ ] `--no-eval-train` vs default (one 10k run)
 
@@ -136,7 +139,7 @@
 | Experiment | Small | Base | Large |
 |------------|-------|------|-------|
 | LR sweep | [x] 10k + 100k (S4/S5 logged) | [x] B0 vs B4 | [x] L0 vs L4 |
-| Epochs / max-steps | [ ] | [ ] B11 (5 ep) queued | [ ] |
+| Epochs / max-steps | [ ] | [x] B11 (5 ep) = 0.538 | [ ] @ 5 ep next |
 | Batch + accum | [ ] | [ ] | [ ] |
 | Warmup / weight decay | [ ] | [ ] | [ ] |
 | Label smoothing | [ ] | [x] **closed: real regression, do not use** (B8/B9/B10) | [ ] |
@@ -201,7 +204,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B8** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls005` | ls=0.05; **closed** — real regression (AVG ~0.176, degenerate gen), do not use |
 | **B9** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls010` | ls=0.10; **closed** — real regression (AVG ~0.176, degenerate gen), do not use |
 | **B10** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls002` | ls=0.02; **closed** — real regression (AVG ~0.176, degenerate gen), do not use |
-| **B11** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep` | **Next** — epochs 3→5, no label smoothing; tests underfitting (`train_flan_t5_base_100k_flan_paper_5ep_a100.slurm`) |
+| **B11** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep` | **New best** AVG **0.538** (5 epochs); beats B5 0.529; `test_loss` 1.094; gain concentrated on HC (0.567 vs 0.538), PD ≈ flat |
 
 ---
 
@@ -225,7 +228,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 6. [x] **B7** numeric-formatting variant complete (re-tokenize + train + decode eval) — strong regression vs B5.
 7. [x] **B8/B9/B10** label-smoothing runs submitted + decode artifacts logged.
 8. [x] B5 sanity decode in same environment → AVG **0.5285** (harness healthy); B8 `trainer_state` converged + decode word-salad → **label smoothing closed as real regression** (see [training_progress.md](training_progress.md)).
-9. [ ] **Next:** submit **B11** (B5 recipe @ 5 epochs, no label smoothing) — `scripts/hpc/train_flan_t5_base_100k_flan_paper_5ep_a100.slurm`; reuse B5 tokenized data; decode → `runs/flan-t5-base/100k-flan-paper-5ep/test_decode_metrics.json`. If B11 beats 0.529, try large @ 5 epochs, then weight-decay-only ablation.
+9. [x] **B11** (B5 recipe @ 5 epochs) trained + decoded → **new best AVG 0.538** (beats B5 0.529); logged in [training_progress.md](training_progress.md).
+10. [ ] **Next:** **large @ 5 epochs** (L0/L4 recipe, 5 epochs) — retest whether large now beats base. Then weight-decay-only ablation on the B11 recipe.
 
 ---
 
@@ -480,4 +484,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-05-31. Label smoothing (B8/B9/B10) closed as a real regression after B5 sanity decode; next experiment is B11 (epochs 3→5). Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-01. B11 (epochs 3→5) is the new best (AVG 0.538, beats B5); next experiment is large @ 5 epochs. Label smoothing (B8/B9/B10) closed as a real regression. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*

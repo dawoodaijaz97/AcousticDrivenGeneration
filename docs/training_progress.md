@@ -42,10 +42,11 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B10 | flan-t5-base | 100k | 5e-4 | 0.753 | 0.147 | 0.002 | 0.114 | 0.000 | 0.615 | **0.176** |
 | L0 | flan-t5-large | 100k | 3e-4 | 0.997 | 0.566 | 0.318 | 0.461 | 0.346 | 0.810 | **0.500** |
 | L4 | flan-t5-large | 100k | 5e-4 | 1.057 | 0.568 | 0.314 | 0.482 | 0.326 | 0.812 | **0.500** |
+| **B11** | flan-t5-base | 100k | 5e-4 | 1.094 | 0.600 | 0.384 | 0.527 | 0.358 | 0.822 | **0.538** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics.
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B11** = B5 recipe @ **5 epochs** (vs 3) — **new best overall**.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -72,6 +73,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B10 | 0.172 | 0.179 | 0.000 |
 | L0 | 0.515 | 0.484 | 0.328 |
 | L4 | 0.504 | 0.497 | 0.316 |
+| **B11** | 0.510 | **0.567** | 0.379 |
 
 ---
 
@@ -149,11 +151,20 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
   - **Generation is degenerate:** B8 decode `sacrebleu_precisions = [45.59, 1.89, 0.025, 0.013]` (1/2/3/4-gram %). Unigram ~46% but bigram ~2% and 4-gram ~0.01% → **word-salad** (right vocabulary, incoherent order), giving BLEU ≈ 0.
 - **Takeaway:** label smoothing flattens the output distribution enough to wreck autoregressive decoding for this T5 recipe even though teacher-forced loss looks reasonable. **Label smoothing abandoned** for flan-t5-base @ 5e-4 (all of 0.02 / 0.05 / 0.10). `test_loss` values (**0.753 / 1.127 / 1.733**) are not comparable across smoothing factors and must not be used for selection.
 
+### Epochs 3→5 (B11 vs B5)
+
+- **B11 (5 epochs) is the new best overall: AVG 0.538** vs B5 0.529 (+0.009). **R-1 0.586→0.600, R-2 0.360→0.384, R-L 0.510→0.527, BERT 0.819→0.822** all improve; only **BLEU dips slightly (0.369→0.358)**.
+- **`test_loss` also improved: 1.203 → 1.094** (the extra epochs genuinely fit better, not just trade metrics) — consistent with the **underfitting** read (large ≤ base at 3 epochs).
+- **BLEU dip is a brevity-penalty effect, not worse n-grams:** B11 sacrebleu precisions **70.9 / 53.1 / 40.8 / 31.5** *beat* B5 (68.1 / 50.0 / 37.4 / 28.2) on every n-gram, but **BP 0.764 vs 0.848** — B11 generates **shorter** outputs, so BLEU nets slightly lower while ROUGE/BERT (precision-friendly) rise.
+- **By group: the gain is entirely on HC.** HC AVG **0.567** vs B5 0.538 (+0.029), HC BLEU **0.379** (tie); **PD AVG 0.510** vs B5 0.519 (−0.009). Extra epochs help the (easier) HC reports more than PD.
+- **Next:** test whether **large @ 5 epochs** benefits more (most capacity headroom).
+- Reporting config updates to **B11** (`runs/flan-t5-base/100k-flan-paper-5ep/final_model`, beam 3) until beaten.
+
 ### Model size
 
-- **Best run to date:** **B5 — flan-t5-base @ 5e-4, flan-paper prompt** (**AVG 0.529**).
+- **Best run to date:** **B11 — flan-t5-base @ 5e-4, flan-paper prompt, 5 epochs** (**AVG 0.538**); previous best B5 (0.529, 3 epochs).
 - **Best small @ 100k:** **S4** (**AVG 0.437**).
-- **Large (L0/L4)** ~**0.500** — below **B5**.
+- **Large (L0/L4)** ~**0.500** — below base; likely under-trained at 3 epochs (retest at 5).
 
 ### `test_loss` vs generation metrics
 
@@ -162,7 +173,7 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. B8/B9/B10 label-smoothing collapse is now **diagnosed as a real regression** (harness verified via B5 sanity decode = 0.529; training converged; generation degenerate) — **label smoothing is closed**. **Next:** **B11 = B5 recipe @ 5 epochs** (base, flan-paper, 5e-4, no label smoothing) to test the untouched **epochs** lever — base `test_loss` ~1.20 and large (~0.500) underperforming base (0.529) both point to underfitting. If B11 helps, also try large @ 5 epochs, then a weight-decay-only ablation on the winner.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. **B11 (5 epochs) is the new best — AVG 0.538** (beats B5 0.529), confirming underfitting at 3 epochs. Label smoothing (B8/B9/B10) is closed as a real regression. **Next:** **large @ 5 epochs** (most capacity headroom — retest whether it now beats base), then a **weight-decay-only ablation** on the B11 recipe. If large @ 5ep still trails base, the epochs gain has plateaued → move to Phase 4 (LoRA / freeze-encoder / non-Flan t5).
 
 ---
 
@@ -181,4 +192,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-05-31 (B8/B9/B10 label-smoothing collapse diagnosed as real regression via B5 sanity decode; label smoothing closed, B11 5-epoch run queued). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-01 (B11 5-epoch run = new best AVG 0.538, beats B5; epochs confirmed as a real gain. Next: large @ 5 epochs). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
