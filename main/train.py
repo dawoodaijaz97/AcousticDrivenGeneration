@@ -71,6 +71,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument("--save-total-limit", type=int, default=2)
+    p.add_argument(
+        "--resume-from-checkpoint",
+        type=str,
+        default=None,
+        help=(
+            "Resume training from a checkpoint. Use 'auto' (or 'true') to resume from the latest "
+            "checkpoint-* in --output-dir, or pass an explicit checkpoint path. Omit to train from scratch. "
+            "Requires checkpoints saved by a prior run (optimizer/scheduler/RNG state included)."
+        ),
+    )
     p.add_argument("--seed", type=int, default=42)
     p.add_argument(
         "--max-train-samples",
@@ -393,7 +403,21 @@ def main(argv: list[str] | None = None) -> int:
 
     _log(f"Trainer.device    = {training_args.device}")
 
-    trainer.train()
+    resume_arg: bool | str | None
+    rfc = args.resume_from_checkpoint
+    if rfc is None or rfc == "":
+        resume_arg = None
+    elif rfc.strip().lower() in ("auto", "true", "1", "yes", "latest"):
+        resume_arg = True
+        _log("resume            = latest checkpoint in --output-dir")
+    else:
+        ckpt = resolve_under_repo(Path(rfc))
+        if not ckpt.is_dir():
+            raise SystemExit(f"--resume-from-checkpoint path not found: {ckpt}")
+        resume_arg = str(ckpt)
+        _log(f"resume            = {ckpt}")
+
+    trainer.train(resume_from_checkpoint=resume_arg)
 
     if test_ds is not None and not args.skip_test_eval:
         _log("test evaluation   = running on best loaded model (test split, real reports)")
