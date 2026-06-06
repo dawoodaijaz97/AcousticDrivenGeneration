@@ -43,10 +43,11 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | L0 | flan-t5-large | 100k | 3e-4 | 0.997 | 0.566 | 0.318 | 0.461 | 0.346 | 0.810 | **0.500** |
 | L4 | flan-t5-large | 100k | 5e-4 | 1.057 | 0.568 | 0.314 | 0.482 | 0.326 | 0.812 | **0.500** |
 | **B11** | flan-t5-base | 100k | 5e-4 | 1.094 | 0.600 | 0.384 | 0.527 | 0.358 | 0.822 | **0.538** |
+| L5 | flan-t5-large | 100k | 5e-4 | 2.779 | 0.606 | 0.361 | 0.525 | 0.366 | 0.823 | **0.536** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B11** = B5 recipe @ **5 epochs** (vs 3) — **new best overall**.
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B11** = B5 recipe @ **5 epochs** (vs 3) — **best overall**. **L5** = large @ 5 epochs (flan-paper, 5e-4) — ties B11 despite 3× params; size lever exhausted.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep}`, `runs/flan-t5-large/{100k,100k-lr5e4}`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -73,7 +74,8 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B10 | 0.172 | 0.179 | 0.000 |
 | L0 | 0.515 | 0.484 | 0.328 |
 | L4 | 0.504 | 0.497 | 0.316 |
-| **B11** | 0.510 | **0.567** | 0.379 |
+| **B11** | 0.510 | 0.567 | 0.379 |
+| L5 | 0.495 | **0.578** | **0.411** |
 
 ---
 
@@ -160,11 +162,19 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **Next:** test whether **large @ 5 epochs** benefits more (most capacity headroom).
 - Reporting config updates to **B11** (`runs/flan-t5-base/100k-flan-paper-5ep/final_model`, beam 3) until beaten.
 
+### Large @ 5 epochs (L5 vs B11) — size lever exhausted
+
+- **L5 (flan-t5-large, flan-paper, 5e-4, 5 epochs) ties base B11: AVG 0.536 vs 0.538** (−0.002, within noise) — **3× the parameters buys nothing overall.**
+- **HC↔PD tradeoff:** L5 **HC AVG 0.578** (vs B11 0.567, +0.011) and **HC BLEU 0.411** (vs 0.379, +0.032) — best HC numbers so far — but **PD AVG 0.495** (vs B11 0.510, −0.015), the worst base/large PD yet. The extra capacity went to HC, not the harder PD reports.
+- **`test_loss` 2.779** — far above B11's 1.094 despite comparable decode AVG. Classic loss-vs-generation decoupling; also hints at **overfitting / 5e-4 being too hot for large @ 5 epochs** (teacher-forced generalization degraded while beam search still produces decent text).
+- **Verdict:** epochs lifted large (0.500 → 0.536) but only to a tie with base; **going bigger is not the lever.** Epochs (B11) remains the win; **B11 stays the best run.**
+
 ### Model size
 
 - **Best run to date:** **B11 — flan-t5-base @ 5e-4, flan-paper prompt, 5 epochs** (**AVG 0.538**); previous best B5 (0.529, 3 epochs).
 - **Best small @ 100k:** **S4** (**AVG 0.437**).
-- **Large (L0/L4)** ~**0.500** — below base; likely under-trained at 3 epochs (retest at 5).
+- **Large:** L0/L4 (3 ep) ~0.500 → **L5 (5 ep) 0.536**, still only ties base — large is not worth its cost here.
+- **Persistent pattern: PD is the weak group** across base and large (B11 PD 0.510, L5 PD 0.495 vs HC 0.567/0.578). PD quality, not model size, is the bottleneck.
 
 ### `test_loss` vs generation metrics
 
@@ -173,7 +183,7 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. **B11 (5 epochs) is the new best — AVG 0.538** (beats B5 0.529), confirming underfitting at 3 epochs. Label smoothing (B8/B9/B10) is closed as a real regression. **Next:** **L5 — large @ 5 epochs** (flan-paper, 5e-4, **2× A100 DDP** via `torchrun`; effective batch kept at 4 by `grad_accum=1` so it mirrors B11 — only model size differs). Most capacity headroom; retests whether large now beats base. Then a **weight-decay-only ablation** on the B11 recipe. If L5 still trails base, the epochs gain has plateaued → move to Phase 4 (LoRA / freeze-encoder / non-Flan t5).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. **B11 (5 epochs) is the new best — AVG 0.538** (beats B5 0.529), confirming underfitting at 3 epochs. Label smoothing (B8/B9/B10) is closed as a real regression. **L5 done — large ties base (0.536 vs 0.538); size lever exhausted.** Best run stays **B11** (base, 5 epochs, 0.538). **Next:** **weight-decay-only ablation on the B11 recipe** (last cheap hyperparameter knob). In parallel, the consistent **PD weakness** (PD ~0.50 vs HC ~0.57 across base/large) is now the clearest bottleneck — worth a PD-targeted look (per-category error inspection, PD/HC class balance). If weight-decay doesn't move AVG, go to **Phase 4** (LoRA / freeze-encoder / non-Flan t5).
 
 ---
 
@@ -192,4 +202,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-01 (B11 5-epoch run = new best AVG 0.538, beats B5; epochs confirmed as a real gain. Next: large @ 5 epochs). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-06 (L5 large @ 5 epochs = AVG 0.536, ties base B11 0.538 despite 3× params; size lever exhausted, B11 remains best. Next: weight-decay ablation + PD-targeted analysis). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
