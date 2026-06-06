@@ -1,0 +1,13 @@
+{
+  "test_metrics": {
+    "test_loss": 2.779299736022949,
+    "test_runtime": 2.6605,
+    "test_samples_per_second": 36.083,
+    "test_steps_per_second": 9.021,
+    "epoch": 5.0
+  },
+  "test_rows": 96,
+  "tokenized_dir": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/data/processed/flan-t5-large/100k-flan-paper/tokenized",
+  "output_dir": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/runs/flan-t5-large/100k-flan-paper-5ep",
+  "model_name": "/home/woody/iwi5/iwi5439h/models/flan-t5-large"
+}
