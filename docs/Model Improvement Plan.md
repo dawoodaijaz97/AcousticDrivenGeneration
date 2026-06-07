@@ -57,7 +57,8 @@
 - [x] Label smoothing ablation (B8/B9/B10) — **closed: confirmed real regression** (2026-05-31; harness verified via B5 sanity decode 0.529, training converged, generation degenerate). **Do not use label smoothing on this recipe.**
 - [x] **B11** — epochs 3→5 on B5 recipe (no label smoothing) — **new best AVG 0.538** (beats B5 0.529); underfitting confirmed
 - [x] **Large @ 5 epochs (L5)** — done; ties base (0.536 vs 0.538), large not worth its cost
-- [ ] **Weight-decay-only ablation on the B11 recipe** — next experiment
+- [x] **B12** — weight-decay **0.0** on B11 recipe — AVG **0.500** (regression vs B11 **0.538**); keep wd **0.01**
+- [ ] **B13** — weight-decay **0.05** on B11 recipe — next experiment (complete wd sweep)
 - [ ] PD-targeted analysis (PD ~0.50 vs HC ~0.57 across base/large is the bottleneck)
 
 ### Model size — Flan-T5-large
@@ -98,8 +99,9 @@
 - [x] Label smoothing trials (B8/B9/B10) — **closed: real regression, do not use** (see [training_progress.md](training_progress.md))
 - [x] **Epochs 3→5 (B11)** on B5 recipe — **new best AVG 0.538**
 - [x] **Large @ 5 epochs (L5)** — ties base (0.536); size not the lever
-- [ ] **Weight-decay-only ablation on B11** — next experiment
-- [ ] Extra weight-decay trials (after epochs)
+- [x] **B12 — weight-decay 0.0 on B11** — AVG **0.500** (regression); keep wd **0.01**
+- [ ] **B13 — weight-decay 0.05 on B11** — next experiment
+- [ ] Extra weight-decay trials (after B13 if needed)
 - [ ] `--no-eval-train` vs default (one 10k run)
 
 ### Phase 2 — Prompt and input (re-tokenize required)
@@ -208,6 +210,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B10** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-ls002` | ls=0.02; **closed** — real regression (AVG ~0.176, degenerate gen), do not use |
 | **B11** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep` | **New best** AVG **0.538** (5 epochs); beats B5 0.529; `test_loss` 1.094; gain concentrated on HC (0.567 vs 0.538), PD ≈ flat |
 | **L5** | flan-t5-large | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-large/100k-flan-paper-5ep` | AVG **0.536** — **ties base B11** (0.538) despite 3× params; HC 0.578 / PD 0.495; `test_loss` 2.78. Size lever exhausted |
+| **B12** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-wd0` | wd=**0.0**, 5 ep; AVG **0.500** (vs B11 **0.538**); HC collapse 0.493 vs 0.567; keep wd **0.01** |
+| **B13** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-wd005` | wd=**0.05**, 5 ep; complete weight-decay sweep |
 
 ---
 
@@ -233,7 +237,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 8. [x] B5 sanity decode in same environment → AVG **0.5285** (harness healthy); B8 `trainer_state` converged + decode word-salad → **label smoothing closed as real regression** (see [training_progress.md](training_progress.md)).
 9. [x] **B11** (B5 recipe @ 5 epochs) trained + decoded → **new best AVG 0.538** (beats B5 0.529); logged in [training_progress.md](training_progress.md).
 10. [x] **L5 — large @ 5 epochs** (flan-paper, 5e-4, 2× A100 DDP) — AVG **0.536**, **ties base B11** (0.538); size not the lever. Decode required `--require-gpu` fix (first attempt CPU-fell-back + hit time limit).
-11. [ ] **Next:** **weight-decay-only ablation on the B11 recipe** (base, flan-paper, 5e-4, 5 ep) — last cheap hyperparameter knob. Then, if AVG doesn't move, **Phase 4** (LoRA / freeze-encoder / non-Flan t5) and a **PD-targeted analysis** (PD ~0.50 vs HC ~0.57 is the bottleneck).
+11. [x] **B12 — weight-decay 0.0** on B11 recipe — AVG **0.500** (regression vs B11 **0.538**); keep wd **0.01**. Logged in [training_progress.md](training_progress.md).
+12. [ ] **Next:** **B13 — weight-decay 0.05** on B11 recipe (complete wd sweep). If B13 doesn't beat B11, close cheap hyperparameter trials → **Phase 4** (LoRA / freeze-encoder / non-Flan t5) + **PD-targeted analysis**.
 
 ---
 
@@ -336,6 +341,43 @@ python -m main.eval_decode \
   --model-path runs/flan-t5-base/100k-flan-paper-5ep/final_model \
   --tokenizer-model $WORK/models/flan-t5-base \
   --output-json runs/flan-t5-base/100k-flan-paper-5ep/test_decode_metrics.json \
+  --batch-size 8 --seed 42
+```
+
+**B12 decode eval (GPU — after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-5ep-wd0/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-5ep-wd0/test_decode_metrics.json \
+  --batch-size 8 --seed 42
+```
+
+**B13 train (A100 — wd 0.05, otherwise B11 recipe):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_100k_flan_paper_5ep_wd005_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_100k_flan_paper_5ep_wd005_a100.slurm
+```
+
+**B13 decode eval (GPU — after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-5ep-wd005/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-5ep-wd005/test_decode_metrics.json \
   --batch-size 8 --seed 42
 ```
 
@@ -527,4 +569,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-06. B11 (base, 5 ep) remains best (AVG 0.538); L5 (large, 5 ep) only ties it (0.536) — size lever exhausted. Next: weight-decay ablation on B11 + PD-targeted analysis. Label smoothing (B8/B9/B10) closed as a real regression. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-06. B11 (wd 0.01, 5 ep) remains best (AVG 0.538). B12 (wd 0.0) regressed to 0.500. Next: B13 (wd 0.05), then Phase 4 / PD analysis. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
