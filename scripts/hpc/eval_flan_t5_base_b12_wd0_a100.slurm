@@ -26,7 +26,8 @@ python -m main.eval_decode \
   --tokenizer-model "$WORK/models/flan-t5-base" \
   --output-json runs/flan-t5-base/100k-flan-paper-5ep-wd0/test_decode_metrics.json \
   --batch-size 8 \
-  --seed 42
+  --seed 42 \
+  --require-gpu
 
 echo "Done. Metrics file:"
 ls -la runs/flan-t5-base/100k-flan-paper-5ep-wd0/test_decode_metrics.json

@@ -145,6 +145,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Force CPU even if CUDA is available.",
     )
     p.add_argument(
+        "--require-gpu",
+        action="store_true",
+        help="Exit if no CUDA GPU is visible to PyTorch (avoids silent CPU fallback that blows batch time limits).",
+    )
+    p.add_argument(
         "--fp16",
         action="store_true",
         help="Run model weights in float16 on CUDA (faster generation).",
@@ -313,6 +318,15 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(
                 "--lm-studio-base-url and --lm-studio-model are required when --backend lm-studio"
             )
+
+    if args.cpu_only and args.require_gpu:
+        raise SystemExit("Choose at most one of --cpu-only and --require-gpu.")
+    if args.require_gpu and not torch.cuda.is_available():
+        raise SystemExit(
+            "CUDA is not available to PyTorch (torch.cuda.is_available() is False). "
+            "Beam-search decoding on CPU is far too slow for batch time limits. "
+            "Omit --require-gpu only if you intend to decode on CPU."
+        )
 
     tokenized = _resolve_tokenized_dataset_dir(resolve_under_repo(args.tokenized_dir))
 
