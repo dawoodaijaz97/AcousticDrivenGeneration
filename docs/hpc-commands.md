@@ -1,6 +1,6 @@
 # HPC commands (NHR@FAU — TinyGPU)
 
-Quick reference for **`tinyx`** (`tinyx.nhr.fau.de`). Slurm commands use the **`.tinygpu`** suffix. Project path: **`$WORK/AcousticDrivenGeneration`**.
+Quick reference for `**tinyx**` (`tinyx.nhr.fau.de`). Slurm commands use the `**.tinygpu**` suffix. Project path: `**$WORK/AcousticDrivenGeneration**`.
 
 SSH from Windows: `ssh tinyx` (see `~/.ssh/config` — jump via `nhr-jump`). More detail: [HPC Info.pdf](HPC%20Info.pdf), `.cursor/rules/hpc-nhr-fau.mdc`.
 
@@ -33,7 +33,7 @@ export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 ```
 
-Use **`$WORK/models/flan-t5-{small,base,large}`** for `--model-name` / `--tokenizer-model` on compute nodes (no Hub access).
+Use `**$WORK/models/flan-t5-{small,base,large}**` for `--model-name` / `--tokenizer-model` on compute nodes (no Hub access).
 
 ---
 
@@ -63,7 +63,7 @@ shownicerquota.pl
 
 ## Interactive GPU session
 
-Request a GPU; wait in **`PD`** if the cluster is busy. When you get a shell:
+Request a GPU; wait in `**PD**` if the cluster is busy. When you get a shell:
 
 ```bash
 # A100 (40 GB) — training / base eval
@@ -118,7 +118,7 @@ Examples: `scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm` (B5), `tra
 
 ## Sync metric JSONs (git — not scp)
 
-Only **`test_decode_metrics.json`** and **`test_eval.json`** under `runs/` are tracked (see `.gitignore`). Checkpoints, `final_model/`, and Slurm logs stay local on HPC.
+Only `**test_decode_metrics.json`** and `**test_eval.json**` under `runs/` are tracked (see `.gitignore`). Checkpoints, `final_model/`, and Slurm logs stay local on HPC.
 
 **On HPC after eval / train:**
 
@@ -173,3 +173,4 @@ scp -r main etl docs requirements.txt scripts tinyx:/home/woody/iwi5/iwi5439h/Ac
 - [eval-decode.md](eval-decode.md) — `main.eval_decode`
 - [Model Improvement Plan.md](Model%20Improvement%20Plan.md) — experiment checklist
 - [training_progress.md](training_progress.md) — results log
+

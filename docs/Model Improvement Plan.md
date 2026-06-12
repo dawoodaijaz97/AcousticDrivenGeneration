@@ -13,7 +13,7 @@
 
 **Related:** [train.md](train.md), [eval-decode.md](eval-decode.md), [data-pipeline.md](data-pipeline.md), [paper-overview.md](paper-overview.md), [hpc-commands.md](hpc-commands.md) (queue, `salloc`, env, `scp`).
 
-**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: see **B5** in [training_progress.md](training_progress.md).
+**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: **B11** (AVG **0.538**) in [training_progress.md](training_progress.md).
 
 **Best small @ 100k:** **S4** (`5e-4`, AVG **0.437**) — see [training_progress.md](training_progress.md). **S5** (`3e-4` @ 100k) completed but **below S0**; no further small LR runs planned.
 
@@ -58,7 +58,7 @@
 - [x] **B11** — epochs 3→5 on B5 recipe (no label smoothing) — **new best AVG 0.538** (beats B5 0.529); underfitting confirmed
 - [x] **Large @ 5 epochs (L5)** — done; ties base (0.536 vs 0.538), large not worth its cost
 - [x] **B12** — weight-decay **0.0** on B11 recipe — AVG **0.500** (regression vs B11 **0.538**); keep wd **0.01**
-- [ ] **B13** — weight-decay **0.05** on B11 recipe — next experiment (complete wd sweep)
+- [x] **B13** — weight-decay **0.05** on B11 recipe — AVG **0.517** (regression vs B11 **0.538**); **weight-decay sweep closed**, keep wd **0.01**
 - [ ] PD-targeted analysis (PD ~0.50 vs HC ~0.57 across base/large is the bottleneck)
 
 ### Model size — Flan-T5-large
@@ -72,7 +72,7 @@
 
 - [x] Epochs / steps (3 vs 5) — **B11** base 5ep wins (0.538); **L5** large 5ep ties (0.536); size not the lever
 - [ ] Batch + gradient accumulation sweep
-- [ ] Warmup / weight decay / label smoothing trials
+- [x] Warmup / weight decay trials — **closed:** B12 (wd=0.0, 0.500) and B13 (wd=0.05, 0.517) both below B11 (wd=0.01, **0.538**); label smoothing closed separately (B8/B9/B10)
 - [ ] `--no-eval-train` wall-clock trial (one 10k run)
 - [ ] FP16 on A100 only (V100 had NaN with fp16)
 - [ ] Leakage audit (`example_hash` train/val/test)
@@ -100,8 +100,8 @@
 - [x] **Epochs 3→5 (B11)** on B5 recipe — **new best AVG 0.538**
 - [x] **Large @ 5 epochs (L5)** — ties base (0.536); size not the lever
 - [x] **B12 — weight-decay 0.0 on B11** — AVG **0.500** (regression); keep wd **0.01**
-- [ ] **B13 — weight-decay 0.05 on B11** — next experiment
-- [ ] Extra weight-decay trials (after B13 if needed)
+- [x] **B13 — weight-decay 0.05 on B11** — AVG **0.517** (regression); **wd sweep closed**
+- [x] Extra weight-decay trials — **closed** (0.01 best; 0.0 and 0.05 regress)
 - [ ] `--no-eval-train` vs default (one 10k run)
 
 ### Phase 2 — Prompt and input (re-tokenize required)
@@ -145,7 +145,7 @@
 | LR sweep | [x] 10k + 100k (S4/S5 logged) | [x] B0 vs B4 | [x] L0 vs L4 |
 | Epochs / max-steps | [ ] | [x] B11 (5 ep) = 0.538 | [x] L5 (5 ep) = 0.536 (ties base) |
 | Batch + accum | [ ] | [ ] | [ ] |
-| Warmup / weight decay | [ ] | [ ] | [ ] |
+| Warmup / weight decay | [ ] | [x] **closed:** B11 wd=0.01 best (0.538); B12 wd=0.0 (0.500); B13 wd=0.05 (0.517) | [ ] |
 | Label smoothing | [ ] | [x] **closed: real regression, do not use** (B8/B9/B10) | [ ] |
 
 ### C. Prompt and input
@@ -211,7 +211,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B11** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep` | **New best** AVG **0.538** (5 epochs); beats B5 0.529; `test_loss` 1.094; gain concentrated on HC (0.567 vs 0.538), PD ≈ flat |
 | **L5** | flan-t5-large | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-large/100k-flan-paper-5ep` | AVG **0.536** — **ties base B11** (0.538) despite 3× params; HC 0.578 / PD 0.495; `test_loss` 2.78. Size lever exhausted |
 | **B12** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-wd0` | wd=**0.0**, 5 ep; AVG **0.500** (vs B11 **0.538**); HC collapse 0.493 vs 0.567; keep wd **0.01** |
-| **B13** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-wd005` | wd=**0.05**, 5 ep; complete weight-decay sweep |
+| **B13** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-wd005` | wd=**0.05**, 5 ep; AVG **0.517** (vs B11 **0.538**); PD 0.486 / HC 0.548; wd sweep closed |
 
 ---
 
@@ -238,7 +238,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 9. [x] **B11** (B5 recipe @ 5 epochs) trained + decoded → **new best AVG 0.538** (beats B5 0.529); logged in [training_progress.md](training_progress.md).
 10. [x] **L5 — large @ 5 epochs** (flan-paper, 5e-4, 2× A100 DDP) — AVG **0.536**, **ties base B11** (0.538); size not the lever. Decode required `--require-gpu` fix (first attempt CPU-fell-back + hit time limit).
 11. [x] **B12 — weight-decay 0.0** on B11 recipe — AVG **0.500** (regression vs B11 **0.538**); keep wd **0.01**. Logged in [training_progress.md](training_progress.md).
-12. [ ] **Next:** **B13 — weight-decay 0.05** on B11 recipe (complete wd sweep). If B13 doesn't beat B11, close cheap hyperparameter trials → **Phase 4** (LoRA / freeze-encoder / non-Flan t5) + **PD-targeted analysis**.
+12. [x] **B13 — weight-decay 0.05** on B11 recipe — AVG **0.517** (regression vs B11 **0.538**); **weight-decay sweep closed**. Logged in [training_progress.md](training_progress.md).
+13. [ ] **Next:** **Phase 4** (LoRA / freeze-encoder / non-Flan t5) + **PD-targeted analysis** (PD ~0.50 vs HC ~0.57).
 
 ---
 
@@ -569,4 +570,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-06. B11 (wd 0.01, 5 ep) remains best (AVG 0.538). B12 (wd 0.0) regressed to 0.500. Next: B13 (wd 0.05), then Phase 4 / PD analysis. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-12. B11 (wd 0.01, 5 ep) remains best (AVG 0.538). B12/B13 complete — wd sweep closed. Next: Phase 4 / PD analysis. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*

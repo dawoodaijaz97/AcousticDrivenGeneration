@@ -45,10 +45,11 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | **B11** | flan-t5-base | 100k | 5e-4 | 1.094 | 0.600 | 0.384 | 0.527 | 0.358 | 0.822 | **0.538** |
 | L5 | flan-t5-large | 100k | 5e-4 | 2.779 | 0.606 | 0.361 | 0.525 | 0.366 | 0.823 | **0.536** |
 | B12 | flan-t5-base | 100k | 5e-4 | 1.351 | 0.555 | 0.325 | 0.471 | 0.338 | 0.809 | **0.500** |
+| B13 | flan-t5-base | 100k | 5e-4 | 1.159 | 0.581 | 0.351 | 0.495 | 0.342 | 0.814 | **0.517** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B11** = B5 recipe @ **5 epochs**, wd **0.01** — **best overall**. **L5** = large @ 5 epochs (flan-paper, 5e-4) — ties B11 despite 3× params; size lever exhausted. **B12** = B11 recipe @ wd **0.0** — regression; keep wd **0.01**.
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B11** = B5 recipe @ **5 epochs**, wd **0.01** — **best overall**. **L5** = large @ 5 epochs — ties B11 despite 3× params; size lever exhausted. **B12/B13** = wd **0.0 / 0.05** — both regress vs B11; **weight-decay sweep closed**, keep wd **0.01**.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -78,6 +79,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | **B11** | 0.510 | 0.567 | 0.379 |
 | L5 | 0.495 | **0.578** | **0.411** |
 | B12 | 0.506 | 0.493 | 0.338 |
+| B13 | 0.486 | 0.548 | 0.367 |
 
 ---
 
@@ -169,7 +171,14 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **B12** (B11 recipe, **`--weight-decay 0.0`**, 5 epochs) **regresses vs B11:** AVG **0.500** vs **0.538** (−**0.038**); R-1 **0.555** vs **0.600**, R-2 **0.325** vs **0.384**, R-L **0.471** vs **0.527**, BLEU **0.338** vs **0.358**, BERT **0.809** vs **0.822**.
 - **`test_loss` 1.351** vs B11 **1.094** — worse on both teacher-forced and decode metrics; removing decay did not help the underfitting read from 3→5 epochs.
 - **By group:** regression is **concentrated on HC.** HC AVG **0.493** vs B11 **0.567** (−0.074); HC BLEU **0.338** vs **0.379**. PD AVG **0.506** vs B11 **0.510** (≈ flat).
-- **Takeaway:** **Keep wd=0.01** (B11 default). One ablation point done; **B13 (wd=0.05)** remains to complete the sweep before closing the weight-decay lever.
+- **Takeaway:** **Keep wd=0.01** (B11 default). **B13 (wd=0.05)** completes the sweep — see below.
+
+### Weight decay ablation — B13 (wd=0.05 vs B11 wd=0.01) — sweep closed (2026-06-12)
+
+- **B13** (B11 recipe, **`--weight-decay 0.05`**, 5 epochs) **does not beat B11:** AVG **0.517** vs **0.538** (−**0.021**); R-1 **0.581** vs **0.600**, R-2 **0.351** vs **0.384**, R-L **0.495** vs **0.527**, BLEU **0.342** vs **0.358**, BERT **0.814** vs **0.822**.
+- **`test_loss` 1.159** vs B11 **1.094** — slightly worse teacher-forced loss; decode metrics confirm no gain.
+- **By group:** **PD** AVG **0.486** vs B11 **0.510** (−0.024), worst PD in the wd sweep; **HC** AVG **0.548** vs B11 **0.567** (−0.019); HC BLEU **0.367** vs **0.379**.
+- **Sweep summary (5 ep, flan-paper, 5e-4):** wd **0.01 → 0.538** (B11, best), **0.05 → 0.517** (B13), **0.0 → 0.500** (B12). **Weight-decay lever exhausted** — do not change wd from **0.01**.
 
 ### Large @ 5 epochs (L5 vs B11) — size lever exhausted
 
@@ -192,7 +201,7 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run stays **B11** (wd **0.01**, 5 epochs, **AVG 0.538**). **B12 (wd=0.0)** regressed to **0.500** — do not drop weight decay. **Next:** **B13 (wd=0.05)** to finish the weight-decay sweep; if that doesn't beat B11, close cheap hyperparameter trials and move to **Phase 4** (LoRA / freeze-encoder / non-Flan t5) plus **PD-targeted analysis** (PD ~0.50 vs HC ~0.57).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run stays **B11** (wd **0.01**, 5 epochs, **AVG 0.538**). **Weight-decay sweep closed:** B12 (wd=0.0, **0.500**) and B13 (wd=0.05, **0.517**) both regress vs B11. **Next:** **Phase 4** (LoRA / freeze-encoder / non-Flan t5) plus **PD-targeted analysis** (PD ~0.50 vs HC ~0.57).
 
 ---
 
@@ -211,4 +220,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-06 (B12 wd=0.0 = AVG 0.500, regression vs B11 0.538; keep wd 0.01. Next: B13 wd=0.05, then Phase 4 / PD analysis). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-12 (B13 wd=0.05 = AVG 0.517, regression vs B11 0.538; weight-decay sweep closed. Next: Phase 4 / PD analysis). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
