@@ -1,0 +1,17 @@
+{
+  "test_metrics": {
+    "test_loss": 1.2100597620010376,
+    "test_runtime": 1.6594,
+    "test_samples_per_second": 57.851,
+    "test_steps_per_second": 14.463,
+    "epoch": 3.0
+  },
+  "test_rows": 96,
+  "tokenized_dir": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/data/processed/flan-t5-base/100k-flan-paper/tokenized",
+  "output_dir": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc",
+  "model_name": "runs/flan-t5-base/100k-flan-paper-5ep/final_model",
+  "lora_rank": 0,
+  "lora_alpha": null,
+  "lora_dropout": null,
+  "freeze_encoder": true
+}
