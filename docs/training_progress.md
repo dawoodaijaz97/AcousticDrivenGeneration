@@ -46,10 +46,11 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | L5 | flan-t5-large | 100k | 5e-4 | 2.779 | 0.606 | 0.361 | 0.525 | 0.366 | 0.823 | **0.536** |
 | B12 | flan-t5-base | 100k | 5e-4 | 1.351 | 0.555 | 0.325 | 0.471 | 0.338 | 0.809 | **0.500** |
 | B13 | flan-t5-base | 100k | 5e-4 | 1.159 | 0.581 | 0.351 | 0.495 | 0.342 | 0.814 | **0.517** |
+| N0 | t5-base | 100k | 5e-4 | 1.247 | 0.455 | 0.269 | 0.393 | 0.285 | 0.791 | **0.439** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B11** = B5 recipe @ **5 epochs**, wd **0.01** — **best overall**. **L5** = large @ 5 epochs — ties B11 despite 3× params; size lever exhausted. **B12/B13** = wd **0.0 / 0.05** — both regress vs B11; **weight-decay sweep closed**, keep wd **0.01**.
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B11** = flan-t5-base, B5 recipe @ **5 epochs**, wd **0.01** — **best overall**. **N0** = non-Flan **`google-t5/t5-base`**, same recipe — **large regression** vs B11; Flan instruction tuning required. **B12/B13** = wd sweep closed.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -80,6 +81,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | L5 | 0.495 | **0.578** | **0.411** |
 | B12 | 0.506 | 0.493 | 0.338 |
 | B13 | 0.486 | 0.548 | 0.367 |
+| N0 | 0.448 | 0.429 | 0.266 |
 
 ---
 
@@ -180,6 +182,13 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **By group:** **PD** AVG **0.486** vs B11 **0.510** (−0.024), worst PD in the wd sweep; **HC** AVG **0.548** vs B11 **0.567** (−0.019); HC BLEU **0.367** vs **0.379**.
 - **Sweep summary (5 ep, flan-paper, 5e-4):** wd **0.01 → 0.538** (B11, best), **0.05 → 0.517** (B13), **0.0 → 0.500** (B12). **Weight-decay lever exhausted** — do not change wd from **0.01**.
 
+### Phase 4 — non-Flan T5-base (N0 vs B11) — Flan required (2026-06-12)
+
+- **N0** (`google-t5/t5-base`, B11 recipe: flan-paper, 5 ep, 5e-4, wd 0.01) **regresses strongly vs B11:** AVG **0.439** vs **0.538** (−**0.099**); R-1 **0.455** vs **0.600**, R-2 **0.269** vs **0.384**, R-L **0.393** vs **0.527**, BLEU **0.285** vs **0.358**, BERT **0.791** vs **0.822**.
+- **`test_loss` 1.247** vs B11 **1.094** — worse on teacher-forced and decode metrics.
+- **By group:** both groups weak vs B11; **HC collapses** — HC AVG **0.429** vs B11 **0.567** (−0.138), HC BLEU **0.266** vs **0.379**; PD AVG **0.448** vs B11 **0.510** (−0.062). PD slightly above HC on N0 (opposite of B11's HC-heavy pattern), but both far below Flan.
+- **Takeaway:** **Flan instruction tuning is essential** for this pipeline at base scale. **Non-Flan t5-base lever closed** — do not pursue vanilla T5-base; remaining Phase 4 options are **LoRA / freeze-encoder on Flan-T5-base (B11)**.
+
 ### Large @ 5 epochs (L5 vs B11) — size lever exhausted
 
 - **L5 (flan-t5-large, flan-paper, 5e-4, 5 epochs) ties base B11: AVG 0.536 vs 0.538** (−0.002, within noise) — **3× the parameters buys nothing overall.**
@@ -201,7 +210,7 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run stays **B11** (wd **0.01**, 5 epochs, **AVG 0.538**). **Weight-decay sweep closed:** B12 (wd=0.0, **0.500**) and B13 (wd=0.05, **0.517**) both regress vs B11. **Next:** **Phase 4** (LoRA / freeze-encoder / non-Flan t5) plus **PD-targeted analysis** (PD ~0.50 vs HC ~0.57).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run stays **B11** (wd **0.01**, 5 epochs, **AVG 0.538**). **N0 (non-Flan t5-base)** AVG **0.439** — Flan required; non-Flan base closed. **Next:** **LoRA / freeze-encoder on Flan-T5-base (B11)** plus **PD-targeted analysis** (PD ~0.50 vs HC ~0.57).
 
 ---
 
@@ -220,4 +229,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-12 (B13 wd=0.05 = AVG 0.517, regression vs B11 0.538; weight-decay sweep closed. Next: Phase 4 / PD analysis). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-12 (N0 non-Flan t5-base = AVG 0.439, −0.099 vs B11 0.538; Flan required. Next: LoRA/freeze on B11 + PD analysis). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
