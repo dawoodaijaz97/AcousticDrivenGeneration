@@ -4,11 +4,11 @@
 
 For the upstream pipeline (splits, prompts, tokenization), see [data-pipeline.md](data-pipeline.md).
 
-For the improvement checklist (all Flan-T5 sizes), see [Model Improvement Plan.md](Model%20Improvement%20Plan.md). For TinyGPU login, queue, interactive GPU, and `scp`, see [hpc-commands.md](hpc-commands.md).
+For the improvement checklist (all Flan-T5 sizes), see [Model Improvement Plan.md](Model%20Improvement%20Plan.md). For logged decode metrics and experiment conclusions, see [training_progress.md](training_progress.md). For generation metrics after training, see [eval-decode.md](eval-decode.md). For TinyGPU login, queue, interactive GPU, and `scp`, see [hpc-commands.md](hpc-commands.md).
 
 ## Prerequisites
 
-- Conda env **`AcousticDrivenGeneration`** (or equivalent) with **`torch`**, **`transformers`**, **`datasets`**, and **`accelerate>=1.1`** (see [`requirements.txt`](../requirements.txt)).
+- Conda env **`AcousticDrivenGeneration`** (or equivalent) with **`torch`**, **`transformers`**, **`datasets`**, **`accelerate>=1.1`**, and **`peft>=0.10`** for Phase 4 LoRA (see [`requirements.txt`](../requirements.txt)).
 - A **`DatasetDict` on disk** from prepare **with `--tokenize`**. By default that lives at **`<processed_dir>/tokenized/`** unless you set `--save-tokenized-dir`.
 
   ```bash
@@ -54,11 +54,108 @@ Optional columns (for example `sample_id`, `example_hash`) may be present; the t
 | `google/flan-t5-xl` | 2.85B |
 | `google/flan-t5-xxl` | 11.3B |
 
-**Naming:** the **`google-t5/`** org hosts the maintained **original T5** mirrors; older tutorials sometimes wrote **`google/t5-small`** etc., which may still resolve depending on the Hub. **Flan-T5** lives under **`google/flan-t5-*`**: same **architecture sizes** as T5 at each tier, but instruction-tuned weights. Within a **size tier** (small vs base vs …), T5 and Flan-T5 share the **same tokenizer vocabulary**, so keep **`--tokenizer-model`** and **`--model-name`** on the **same tier** (and rebuild the tokenized dataset if you change tier).
+**Naming:** the **`google-t5/`** org hosts the maintained **original T5** mirrors; older tutorials sometimes wrote **`google/t5-small`** etc., which may **not** resolve on the Hub (use **`google-t5/t5-base`**, not `google/t5-base`, when downloading). **Flan-T5** lives under **`google/flan-t5-*`**: same **architecture sizes** as T5 at each tier, but instruction-tuned weights. Within a **size tier** (small vs base vs …), T5 and Flan-T5 share the **same tokenizer vocabulary**, so keep **`--tokenizer-model`** and **`--model-name`** on the **same tier** (and rebuild the tokenized dataset if you change tier).
+
+**Flan vs non-Flan (N0):** at base scale, **`google-t5/t5-base`** with the B11 recipe reached decode **AVG 0.439** vs **B11 (flan-t5-base) 0.538** — see [training_progress.md](training_progress.md). **Use Flan-T5 for this pipeline**; non-Flan base is closed.
 
 **Related but different vocab:** **mT5** (`google/mt5-small`, `google/mt5-base`, …) is multilingual T5 with a **different SentencePiece vocabulary**. Do not mix mT5 tokenization with T5/Flan-T5 checkpoints unless you deliberately re-tokenize with the matching **`google/mt5-*`** tokenizer.
 
 **Compute:** **XL / XXL / 3B / 11B** need large GPU memory (or multi-GPU / CPU with very long runtimes). Defaults in this repo assume **small**–**base**–scale runs.
+
+## Recommended base recipe (B11 — current best)
+
+As of the runs logged in [training_progress.md](training_progress.md), the best **flan-t5-base** config is **B11**:
+
+| Setting | Value |
+| --- | --- |
+| Prepare | `data/processed/flan-t5-base/100k-flan-paper` (`--prompt-style flan-paper`) |
+| Tokenized dir | `data/processed/flan-t5-base/100k-flan-paper/tokenized` |
+| Model | `$WORK/models/flan-t5-base` (or `google/flan-t5-base`) |
+| Epochs | **5** |
+| Learning rate | **5e-4** |
+| Weight decay | **0.01** |
+| Label smoothing | **0.0** (do **not** use — B8/B9/B10 collapsed decode; see training_progress) |
+| Batch (train / eval) | 4 / 4 per device |
+| Warmup ratio | 0.1 |
+| eval / save steps | 5000 / 5000 |
+| Output | `runs/flan-t5-base/100k-flan-paper-5ep` |
+| Decode **AVG** | **0.538** (beam 3; `main.eval_decode`) |
+
+Slurm: [`scripts/hpc/train_flan_t5_base_100k_flan_paper_5ep_a100.slurm`](../scripts/hpc/train_flan_t5_base_100k_flan_paper_5ep_a100.slurm).
+
+**Selection rule:** pick configs by **decode AVG** from `test_decode_metrics.json`, not by `test_loss` or synthetic val loss alone.
+
+### Closed levers (do not re-run without new hypothesis)
+
+| Lever | Result |
+| --- | --- |
+| Model size (large @ 5 ep, L5) | Ties B11 (AVG 0.536) — not worth 3× cost |
+| Weight decay (B12 wd=0.0, B13 wd=0.05) | Both regress vs B11 — keep **0.01** |
+| Label smoothing (B8–B10) | Degenerate generation — **do not use** |
+| Prompt variants (B6/B7) | Below B5/B11 |
+| Non-Flan t5-base (N0) | AVG 0.439 — Flan required |
+
+## Phase 4 — next training experiments
+
+Phase 4 flags are implemented in [`main/train.py`](../main/train.py) (requires **`peft`** in the conda env). Start from **B11** weights by setting **`--model-name`** to `runs/flan-t5-base/100k-flan-paper-5ep/final_model` (or `$WORK/models/flan-t5-base` for from-scratch baselines). **`--lora-rank` and `--freeze-encoder` are mutually exclusive.**
+
+| Mode | Flags | Notes |
+| --- | --- | --- |
+| **LoRA** | `--lora-rank 16` (optional `--lora-alpha`, `--lora-dropout`) | Adapters merged into **`final_model/`** on save so **`main.eval_decode`** works unchanged. |
+| **Freeze encoder** | `--freeze-encoder` | Trains decoder only; full decoder weights updated. |
+
+Suggested experiment IDs (log in [training_progress.md](training_progress.md)):
+
+- **B14** — LoRA on B11 checkpoint, rank 16, 3 epochs, same LR/wd as B11  
+- **B15** — freeze encoder on B11 checkpoint, 3–5 epochs, same LR/wd as B11  
+
+**LoRA example (B14-style):**
+
+```bash
+python -m main.train \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --output-dir runs/flan-t5-base/100k-flan-paper-5ep-lora16 \
+  --model-name runs/flan-t5-base/100k-flan-paper-5ep/final_model \
+  --lora-rank 16 \
+  --num-train-epochs 3 \
+  --per-device-train-batch-size 4 \
+  --per-device-eval-batch-size 4 \
+  --learning-rate 5e-4 \
+  --weight-decay 0.01 \
+  --warmup-ratio 0.1 \
+  --logging-steps 100 \
+  --eval-steps 5000 \
+  --save-steps 5000 \
+  --save-total-limit 2 \
+  --seed 42 \
+  --require-gpu
+```
+
+**Freeze-encoder example (B15-style):**
+
+```bash
+python -m main.train \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --output-dir runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc \
+  --model-name runs/flan-t5-base/100k-flan-paper-5ep/final_model \
+  --freeze-encoder \
+  --num-train-epochs 3 \
+  --per-device-train-batch-size 4 \
+  --per-device-eval-batch-size 4 \
+  --learning-rate 5e-4 \
+  --weight-decay 0.01 \
+  --warmup-ratio 0.1 \
+  --logging-steps 100 \
+  --eval-steps 5000 \
+  --save-steps 5000 \
+  --save-total-limit 2 \
+  --seed 42 \
+  --require-gpu
+```
+
+After training, run **`main.eval_decode`** on **`final_model/`** (see [eval-decode.md](eval-decode.md)). Compare decode **AVG** to **B11 (0.538)**.
+
+Until results are logged, continue **PD analysis** (group balance, decode PD/HC tables, plots) — see [Model Improvement Plan.md](Model%20Improvement%20Plan.md).
 
 ## Model inputs, outputs, validation, and loss
 
@@ -86,9 +183,9 @@ During training, **`Seq2SeqTrainer`** evaluates on the **`val`** split every **`
 
 ### Loss (cost function)
 
-Fine-tuning uses the **default seq2seq objective** from Hugging Face: **token-level cross-entropy** (negative log-likelihood) on the decoder targets with **teacher forcing**, summed/averaged over non-padding positions (padding masked via **`-100`**). You can optionally apply label smoothing via **`--label-smoothing`** (maps to `label_smoothing_factor` in `Seq2SeqTrainingArguments`; default `0.0`).
+Fine-tuning uses the **default seq2seq objective** from Hugging Face: **token-level cross-entropy** (negative log-likelihood) on the decoder targets with **teacher forcing**, summed/averaged over non-padding positions (padding masked via **`-100`**). You can optionally apply label smoothing via **`--label-smoothing`** (maps to `label_smoothing_factor` in `Seq2SeqTrainingArguments`; default `0.0`). **On flan-t5-base @ 5e-4, label smoothing wrecked decode** even when loss looked fine — keep **`0.0`** for the B11 recipe.
 
-**`--weight-decay`** applies **AdamW weight decay** on parameters; that is **regularization**, not the sequence prediction loss.
+**`--weight-decay`** applies **AdamW weight decay** on parameters; that is **regularization**, not the sequence prediction loss. **Best base value: `0.01`** (B11); `0.0` and `0.05` both regressed (B12/B13).
 
 ## What the script does
 
@@ -122,6 +219,7 @@ Intermediate checkpoints live directly under **`--output-dir`** (subject to **`-
 | `--eval-steps` | `500` | Eval every N steps (clamped when `--max-steps` set). |
 | `--save-steps` | `500` | Save every N steps (clamped when `--max-steps` set). |
 | `--save-total-limit` | `2` | Rolling checkpoint cap. |
+| `--resume-from-checkpoint` | *(none)* | Resume from `checkpoint-*` in `--output-dir` (`auto` / path). |
 | `--seed` | `42` | |
 | `--max-train-samples` | *(none)* | Use only the first N training examples. |
 | `--max-eval-samples` | *(none)* | Use only the first N validation examples. |
@@ -135,8 +233,35 @@ Intermediate checkpoints live directly under **`--output-dir`** (subject to **`-
 | `--predict-with-generate` | off | Runs generation during eval (slower); no extra metrics unless you extend the trainer. |
 | `--require-gpu` | off | Exit if `torch.cuda.is_available()` is false (catches CPU-only PyTorch). |
 | `--cpu-only` | off | Force CPU training; do not combine with `--require-gpu`. |
+| `--lora-rank` | `0` | If **> 0**, apply PEFT LoRA (rank *r*); merged into `final_model/` on save. |
+| `--lora-alpha` | *(2 × rank)* | LoRA scaling alpha. |
+| `--lora-dropout` | `0.05` | LoRA dropout. |
+| `--freeze-encoder` | off | Train decoder only; mutually exclusive with `--lora-rank` > 0. |
 
 ## Example commands
+
+**B11 (best base recipe — after prepare with `--prompt-style flan-paper`):**
+
+```bash
+python -m main.train \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --output-dir runs/flan-t5-base/100k-flan-paper-5ep \
+  --model-name google/flan-t5-base \
+  --num-train-epochs 5 \
+  --per-device-train-batch-size 4 \
+  --per-device-eval-batch-size 4 \
+  --learning-rate 5e-4 \
+  --weight-decay 0.01 \
+  --warmup-ratio 0.1 \
+  --logging-steps 100 \
+  --eval-steps 5000 \
+  --save-steps 5000 \
+  --save-total-limit 2 \
+  --seed 42 \
+  --require-gpu
+```
+
+On TinyGPU, prefer the Slurm script: `sbatch.tinygpu scripts/hpc/train_flan_t5_base_100k_flan_paper_5ep_a100.slurm` (see [hpc-commands.md](hpc-commands.md)).
 
 Full run (after `prepare --tokenize`; default tokenized path is under the same output dir):
 
@@ -162,6 +287,7 @@ python -m main.train --tokenized-dir data/processed_smoke/tokenized --output-dir
 
 ## Notes and limitations
 
-- **`test`** split: used **once** after training for **`test_eval.json`** (teacher-forcing loss). Generation metrics (BLEU / ROUGE / BERTScore) still need a separate script or `compute_metrics` if you add them.
+- **`test`** split: used **once** after training for **`test_eval.json`** (teacher-forcing loss). **Decode metrics** (BLEU / ROUGE / BERTScore / **AVG**) come from **`main.eval_decode`** → `test_decode_metrics.json` — run on a **GPU compute node** with **`--require-gpu`**, not on the `tinyx` login node (CPU decode times out). See [eval-decode.md](eval-decode.md).
 - **`--predict-with-generate`**: enables generation in eval but **does not** attach BLEU/ROUGE/BERTScore; add `compute_metrics` in code when those metrics are wired up.
+- **V100 / TinyGPU:** avoid **`--fp16`** on V100 for this project (historical NaN / bogus loss); A100 FP32 (no flag) is stable.
 - Transformers may emit warnings (for example deprecation of `warmup_ratio`, tied weights, or hub cache symlinks on Windows); they do not change the documented CLI behavior unless you upgrade libraries and APIs diverge.

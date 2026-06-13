@@ -169,6 +169,33 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Optional: LM Studio model id included in lm_studio.json.",
     )
+    p.add_argument(
+        "--lora-rank",
+        type=int,
+        default=0,
+        help=(
+            "If > 0, wrap the model with PEFT LoRA (rank r). "
+            "Use --model-name pointing at B11 final_model to adapt an existing fine-tune. "
+            "Adapters are merged into final_model/ on save for eval_decode compatibility."
+        ),
+    )
+    p.add_argument(
+        "--lora-alpha",
+        type=int,
+        default=None,
+        help="LoRA alpha (default: 2 × --lora-rank when --lora-rank > 0).",
+    )
+    p.add_argument(
+        "--lora-dropout",
+        type=float,
+        default=0.05,
+        help="LoRA dropout (default 0.05).",
+    )
+    p.add_argument(
+        "--freeze-encoder",
+        action="store_true",
+        help="Freeze encoder weights; train decoder only (Phase 4). Mutually exclusive with --lora-rank > 0.",
+    )
     return p.parse_args(argv)
 
 
@@ -264,6 +291,45 @@ def _resolve_tokenized_dataset_dir(path: Path) -> Path:
     )
 
 
+def _freeze_encoder(model: torch.nn.Module) -> None:
+    frozen = 0
+    trainable = 0
+    for name, param in model.named_parameters():
+        if name.startswith("encoder."):
+            param.requires_grad = False
+            frozen += param.numel()
+        else:
+            trainable += param.numel()
+    _log(f"freeze_encoder    = on (encoder frozen {frozen:,} params; trainable {trainable:,})")
+
+
+def _apply_lora(
+    model: torch.nn.Module,
+    *,
+    rank: int,
+    alpha: int | None,
+    dropout: float,
+) -> torch.nn.Module:
+    from peft import LoraConfig, TaskType, get_peft_model
+
+    lora_alpha = alpha if alpha is not None else rank * 2
+    config = LoraConfig(
+        task_type=TaskType.SEQ_2_SEQ_LM,
+        r=rank,
+        lora_alpha=lora_alpha,
+        lora_dropout=dropout,
+        target_modules=["q", "v"],
+    )
+    peft_model = get_peft_model(model, config)
+    trainable = sum(p.numel() for p in peft_model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in peft_model.parameters())
+    _log(
+        f"lora              = rank={rank} alpha={lora_alpha} dropout={dropout} "
+        f"(trainable {trainable:,} / {total:,} params)"
+    )
+    return peft_model
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     tokenized_arg = resolve_under_repo(args.tokenized_dir)
@@ -322,12 +388,28 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--eval-train-max-samples must be >= 0 (0 = use full train set for train eval).")
     if not 0.0 <= args.label_smoothing < 1.0:
         raise SystemExit("--label-smoothing must be in [0.0, 1.0).")
+    if args.lora_rank < 0:
+        raise SystemExit("--lora-rank must be >= 0 (0 disables LoRA).")
+    if args.lora_rank > 0 and args.freeze_encoder:
+        raise SystemExit("Choose at most one of --lora-rank > 0 and --freeze-encoder.")
+    if args.lora_rank > 0 and not 0.0 <= args.lora_dropout < 1.0:
+        raise SystemExit("--lora-dropout must be in [0.0, 1.0).")
 
     use_cpu = _resolve_use_cpu(args)
     _log_device_plan(use_cpu)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(args.model_name)
+
+    if args.freeze_encoder:
+        _freeze_encoder(model)
+    elif args.lora_rank > 0:
+        model = _apply_lora(
+            model,
+            rank=args.lora_rank,
+            alpha=args.lora_alpha,
+            dropout=args.lora_dropout,
+        )
 
     use_fp16 = bool(args.fp16 and torch.cuda.is_available() and not use_cpu)
     use_bf16 = bool(args.bf16 and not use_cpu and (torch.cuda.is_available() or _mps_is_available()))
@@ -428,6 +510,10 @@ def main(argv: list[str] | None = None) -> int:
             "tokenized_dir": str(tokenized),
             "output_dir": str(out),
             "model_name": args.model_name,
+            "lora_rank": args.lora_rank,
+            "lora_alpha": args.lora_alpha if args.lora_alpha is not None else (args.lora_rank * 2 if args.lora_rank > 0 else None),
+            "lora_dropout": args.lora_dropout if args.lora_rank > 0 else None,
+            "freeze_encoder": args.freeze_encoder,
         }
         report_path = out / "test_eval.json"
         report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
@@ -435,8 +521,14 @@ def main(argv: list[str] | None = None) -> int:
         for key in sorted(test_metrics.keys()):
             _log(f"  {key}: {test_metrics[key]}")
 
-    trainer.save_model(str(out / "final_model"))
-    tokenizer.save_pretrained(str(out / "final_model"))
+    export_model = trainer.model
+    if args.lora_rank > 0 and hasattr(export_model, "merge_and_unload"):
+        export_model = export_model.merge_and_unload()
+        _log("lora              = merged adapters into base weights for final_model export")
+
+    final_dir = out / "final_model"
+    export_model.save_pretrained(str(final_dir))
+    tokenizer.save_pretrained(str(final_dir))
     if args.lm_studio_base_url:
         hint = {
             "base_url": args.lm_studio_base_url.strip(),
