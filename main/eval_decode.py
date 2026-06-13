@@ -119,6 +119,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Optional path to write metrics JSON (repo-relative if not absolute).",
     )
+    p.add_argument(
+        "--output-predictions-json",
+        type=Path,
+        default=None,
+        help="Optional path to write per-example reference/hypothesis JSON for PD analysis.",
+    )
     p.add_argument("--batch-size", type=int, default=8)
     p.add_argument(
         "--max-new-tokens",
@@ -370,6 +376,7 @@ def main(argv: list[str] | None = None) -> int:
     hypotheses: list[str] = []
     references: list[str] = []
     groups: list[str | None] = []
+    sample_ids: list[str | None] = []
 
     gen_kwargs: dict[str, Any] = {
         "max_new_tokens": args.max_new_tokens,
@@ -436,6 +443,33 @@ def main(argv: list[str] | None = None) -> int:
                     groups.append(None if g is None else str(g))
                 else:
                     groups.append(None)
+                if "sample_id" in test_ds.column_names:
+                    sid = test_ds[idx]["sample_id"]
+                    sample_ids.append(None if sid is None else str(sid))
+                else:
+                    sample_ids.append(None)
+
+    if args.output_predictions_json is not None:
+        pred_rows = []
+        for i in range(len(hypotheses)):
+            pred_rows.append(
+                {
+                    "sample_id": sample_ids[i] if i < len(sample_ids) else None,
+                    "group": groups[i] if i < len(groups) else None,
+                    "reference": references[i],
+                    "hypothesis": hypotheses[i],
+                }
+            )
+        pred_report = {
+            "model_path": str(model_path) if model_path is not None else None,
+            "tokenized_dir": str(tokenized),
+            "n": len(pred_rows),
+            "rows": pred_rows,
+        }
+        pred_path = resolve_under_repo(args.output_predictions_json)
+        pred_path.parent.mkdir(parents=True, exist_ok=True)
+        pred_path.write_text(json.dumps(pred_report, indent=2), encoding="utf-8")
+        _log(f"wrote predictions {pred_path}")
 
     bert_device = "cuda" if device.type == "cuda" else "cpu"
 
