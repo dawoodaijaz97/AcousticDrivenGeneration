@@ -13,11 +13,11 @@
 
 **Related:** [train.md](train.md), [eval-decode.md](eval-decode.md), [data-pipeline.md](data-pipeline.md), [paper-overview.md](paper-overview.md), [hpc-commands.md](hpc-commands.md) (queue, `salloc`, env, `scp`).
 
-**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: **B11** (AVG **0.538**) in [training_progress.md](training_progress.md).
+**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: **B14** (AVG **0.540**) in [training_progress.md](training_progress.md).
 
 **Best small @ 100k:** **S4** (`5e-4`, AVG **0.437**) — see [training_progress.md](training_progress.md). **S5** (`3e-4` @ 100k) completed but **below S0**; no further small LR runs planned.
 
-**Best run:** **B11** — flan-t5-base, **`flan-paper`** prompt, LR **5e-4**, **5 epochs**, AVG **0.538** (beats B5 0.529; L5 large @ 5 ep only ties it at 0.536 — size is not the lever; see [training_progress.md](training_progress.md)).
+**Best run:** **B14** — B11 checkpoint + **LoRA rank 16**, 3 ep, LR **5e-4**, AVG **0.540** (beats B11 full fine-tune **0.538**; see [training_progress.md](training_progress.md)). **Best full fine-tune:** **B11** (0.538).
 
 ---
 
@@ -60,7 +60,9 @@
 - [x] **B12** — weight-decay **0.0** on B11 recipe — AVG **0.500** (regression vs B11 **0.538**); keep wd **0.01**
 - [x] **B13** — weight-decay **0.05** on B11 recipe — AVG **0.517** (regression vs B11 **0.538**); **weight-decay sweep closed**, keep wd **0.01**
 - [x] **N0** — non-Flan **`google-t5/t5-base`**, B11 recipe — AVG **0.439** (regression vs B11 **0.538**); **non-Flan base closed**
-- [ ] PD-targeted analysis (PD ~0.50 vs HC ~0.57 across base/large is the bottleneck)
+- [x] **B14** — LoRA rank **16** on B11 `final_model`, 3 ep — AVG **0.540** (**new best overall**; PD **0.512**, HC **0.568**)
+- [x] **B15** — freeze encoder on B11 `final_model`, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**
+- [ ] PD-targeted analysis (PD ~0.51 vs HC ~0.57 on B14 is still the bottleneck)
 
 ### Model size — Flan-T5-large
 
@@ -121,8 +123,9 @@
 
 ### Phase 4 — Efficiency (if quality plateaus)
 
-- [ ] LoRA / adapters (`peft`, rank 8–32) on **Flan-T5-base (B11)**
-- [ ] Freeze encoder, train decoder on **Flan-T5-base (B11)**
+- [x] LoRA / adapters (`peft`, rank 16) on **Flan-T5-base (B11)** — **B14** AVG **0.540**, **new best**
+- [x] Freeze encoder, train decoder on **Flan-T5-base (B11)** — **B15** AVG **0.529**, below B11; **closed**
+- [ ] Optional LoRA rank sweep (8 / 32) on B11 checkpoint — only if marginal gains justify cost
 - [x] Compare **`google-t5/t5-base`** (non-Flan) at same pipeline — **N0** AVG **0.439**, well below B11 **0.538**; **closed**
 - [ ] Optional: **`google-t5/t5-small`** (non-Flan) at same pipeline — deprioritized after N0
 
@@ -174,8 +177,8 @@
 
 | Action | Status |
 |--------|--------|
-| LoRA / adapters | [ ] |
-| Freeze encoder | [ ] |
+| LoRA / adapters | [x] **B14** r=16 on B11 → AVG **0.540** (new best) |
+| Freeze encoder | [x] **B15** on B11 → AVG **0.529** (closed) |
 | Span-corruption pretrain | [ ] (out of scope unless plateau) |
 | FP16 on A100 | [ ] |
 
@@ -216,6 +219,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B12** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-wd0` | wd=**0.0**, 5 ep; AVG **0.500** (vs B11 **0.538**); HC collapse 0.493 vs 0.567; keep wd **0.01** |
 | **B13** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-wd005` | wd=**0.05**, 5 ep; AVG **0.517** (vs B11 **0.538**); PD 0.486 / HC 0.548; wd sweep closed |
 | **N0** | t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/t5-base/100k-flan-paper-5ep` | non-Flan **`google-t5/t5-base`**, B11 recipe; AVG **0.439** (−0.099 vs B11); HC 0.429 / PD 0.448; **non-Flan base closed** |
+| **B14** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora16` | LoRA **r=16** on B11 `final_model`, 3 ep; AVG **0.540** (**new best**); PD **0.512** / HC **0.568**; `test_loss` 1.166 |
+| **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
 
 ---
 
@@ -244,7 +249,9 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 11. [x] **B12 — weight-decay 0.0** on B11 recipe — AVG **0.500** (regression vs B11 **0.538**); keep wd **0.01**. Logged in [training_progress.md](training_progress.md).
 12. [x] **B13 — weight-decay 0.05** on B11 recipe — AVG **0.517** (regression vs B11 **0.538**); **weight-decay sweep closed**. Logged in [training_progress.md](training_progress.md).
 13. [x] **N0 — non-Flan `google-t5/t5-base`**, B11 recipe — AVG **0.439** (regression vs B11 **0.538**); **non-Flan base closed**. Logged in [training_progress.md](training_progress.md).
-14. [ ] **Next:** **LoRA / freeze-encoder on Flan-T5-base (B11)** + **PD-targeted analysis** (PD ~0.50 vs HC ~0.57).
+14. [x] **B14 — LoRA rank 16 on B11 `final_model`**, 3 ep — AVG **0.540** (**new best overall**; +0.002 vs B11); PD **0.512**, HC **0.568**. Logged in [training_progress.md](training_progress.md).
+15. [x] **B15 — freeze encoder on B11 `final_model`**, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**. Logged in [training_progress.md](training_progress.md).
+16. [ ] **Next:** **PD-targeted analysis** on B14 decodes (PD ~0.51 vs HC ~0.57); optional **LoRA rank sweep** (8/32).
 
 ---
 
@@ -425,6 +432,52 @@ python -m main.eval_decode \
   --model-path runs/t5-base/100k-flan-paper-5ep/final_model \
   --tokenizer-model $WORK/models/t5-base \
   --output-json runs/t5-base/100k-flan-paper-5ep/test_decode_metrics.json \
+  --batch-size 8 --seed 42 \
+  --require-gpu
+```
+
+**B14 train (A100 — LoRA r=16 on B11 `final_model`, 3 ep):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_b14_lora16_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_b14_lora16_a100.slurm
+```
+
+**B14 decode eval (GPU — after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-5ep-lora16/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-5ep-lora16/test_decode_metrics.json \
+  --batch-size 8 --seed 42 \
+  --require-gpu
+```
+
+**B15 train (A100 — freeze encoder on B11 `final_model`, 3 ep):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_b15_freeze_enc_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_b15_freeze_enc_a100.slurm
+```
+
+**B15 decode eval (GPU — after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc/test_decode_metrics.json \
   --batch-size 8 --seed 42 \
   --require-gpu
 ```
@@ -617,4 +670,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-12. B11 (wd 0.01, 5 ep) remains best (AVG 0.538). N0 (non-Flan t5-base) AVG 0.439 — non-Flan base closed. Next: LoRA/freeze on B11 + PD analysis. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-12. **B14** (LoRA r=16 on B11, 3 ep) is **new best** (AVG **0.540**). **B15** freeze-encoder **0.529** — closed. Next: PD analysis on B14; optional LoRA rank sweep. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*

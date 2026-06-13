@@ -47,10 +47,12 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B12 | flan-t5-base | 100k | 5e-4 | 1.351 | 0.555 | 0.325 | 0.471 | 0.338 | 0.809 | **0.500** |
 | B13 | flan-t5-base | 100k | 5e-4 | 1.159 | 0.581 | 0.351 | 0.495 | 0.342 | 0.814 | **0.517** |
 | N0 | t5-base | 100k | 5e-4 | 1.247 | 0.455 | 0.269 | 0.393 | 0.285 | 0.791 | **0.439** |
+| B15 | flan-t5-base | 100k | 5e-4 | 1.210 | 0.588 | 0.376 | 0.517 | 0.346 | 0.818 | **0.529** |
+| **B14** | flan-t5-base | 100k | 5e-4 | 1.166 | 0.605 | 0.385 | 0.528 | 0.360 | 0.823 | **0.540** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B11** = flan-t5-base, B5 recipe @ **5 epochs**, wd **0.01** — **best overall**. **N0** = non-Flan **`google-t5/t5-base`**, same recipe — **large regression** vs B11; Flan instruction tuning required. **B12/B13** = wd sweep closed.
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B14** = B11 checkpoint + **LoRA rank 16**, 3 ep — **new best overall**. **B15** = freeze encoder, 3 ep — below B11; lever closed. **N0** = non-Flan t5-base — Flan required.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005,100k-flan-paper-5ep-lora16,100k-flan-paper-5ep-freeze-enc}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -82,6 +84,8 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B12 | 0.506 | 0.493 | 0.338 |
 | B13 | 0.486 | 0.548 | 0.367 |
 | N0 | 0.448 | 0.429 | 0.266 |
+| B15 | 0.499 | 0.560 | 0.369 |
+| **B14** | 0.512 | 0.568 | 0.383 |
 
 ---
 
@@ -187,7 +191,21 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **N0** (`google-t5/t5-base`, B11 recipe: flan-paper, 5 ep, 5e-4, wd 0.01) **regresses strongly vs B11:** AVG **0.439** vs **0.538** (−**0.099**); R-1 **0.455** vs **0.600**, R-2 **0.269** vs **0.384**, R-L **0.393** vs **0.527**, BLEU **0.285** vs **0.358**, BERT **0.791** vs **0.822**.
 - **`test_loss` 1.247** vs B11 **1.094** — worse on teacher-forced and decode metrics.
 - **By group:** both groups weak vs B11; **HC collapses** — HC AVG **0.429** vs B11 **0.567** (−0.138), HC BLEU **0.266** vs **0.379**; PD AVG **0.448** vs B11 **0.510** (−0.062). PD slightly above HC on N0 (opposite of B11's HC-heavy pattern), but both far below Flan.
-- **Takeaway:** **Flan instruction tuning is essential** for this pipeline at base scale. **Non-Flan t5-base lever closed** — do not pursue vanilla T5-base; remaining Phase 4 options are **LoRA / freeze-encoder on Flan-T5-base (B11)**.
+- **Takeaway:** **Flan instruction tuning is essential** for this pipeline at base scale. **Non-Flan t5-base lever closed** — do not pursue vanilla T5-base.
+
+### Phase 4 — LoRA on B11 (B14) — new best (2026-06-12)
+
+- **B14** (B11 `final_model` + **LoRA rank 16**, 3 ep, 5e-4, wd 0.01) **beats B11 on decode:** AVG **0.540** vs **0.538** (+**0.002**); R-1 **0.605** vs **0.600**, R-2 **0.385** vs **0.384**, R-L **0.528** vs **0.527**, BLEU **0.360** vs **0.358**, BERT **0.823** vs **0.822**.
+- **`test_loss` 1.166** vs B11 **1.094** — slightly worse teacher-forced loss; decode metrics still improve (same decoupling pattern as before).
+- **By group:** **PD AVG 0.512** vs B11 **0.510** (+0.002); **HC AVG 0.568** vs B11 **0.567** (+0.001); **HC BLEU 0.383** vs **0.379**. First config to nudge **both** PD and HC above B11, though margins are small.
+- **Reporting config updates to B14** (`runs/flan-t5-base/100k-flan-paper-5ep-lora16/final_model`, beam 3).
+
+### Phase 4 — freeze encoder on B11 (B15) — closed (2026-06-12)
+
+- **B15** (B11 `final_model`, **`--freeze-encoder`**, 3 ep) **does not beat B11:** AVG **0.529** vs **0.538** (−**0.009**); R-1 **0.588**, BLEU **0.346**, BERT **0.818**.
+- **`test_loss` 1.210** vs B11 **1.094**.
+- **By group:** **PD AVG 0.499** vs B11 **0.510** (−0.011); **HC AVG 0.560** vs **0.567** (−0.007); HC BLEU **0.369**. Regression on both groups vs B11.
+- **Takeaway:** **Freeze-encoder lever closed** for this recipe; **LoRA (B14) is the Phase 4 win.**
 
 ### Large @ 5 epochs (L5 vs B11) — size lever exhausted
 
@@ -198,19 +216,21 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### Model size
 
-- **Best run to date:** **B11 — flan-t5-base @ 5e-4, flan-paper prompt, 5 epochs** (**AVG 0.538**); previous best B5 (0.529, 3 epochs).
+- **Best run to date:** **B14 — LoRA rank 16 on B11 checkpoint, 3 ep** (**AVG 0.540**); previous best B11 (0.538, full fine-tune 5 ep).
+- **Best full fine-tune:** **B11** (0.538).
 - **Best small @ 100k:** **S4** (**AVG 0.437**).
 - **Large:** L0/L4 (3 ep) ~0.500 → **L5 (5 ep) 0.536**, still only ties base — large is not worth its cost here.
-- **Persistent pattern: PD is the weak group** across base and large (B11 PD 0.510, L5 PD 0.495 vs HC 0.567/0.578). PD quality, not model size, is the bottleneck.
+- **Persistent pattern: PD is the weak group** on full fine-tune (B11 PD 0.510 vs HC 0.567). **B14 LoRA** slightly lifts both (PD **0.512**, HC **0.568**) — still the main gap vs paper (~0.68).
+
+### What to run next
+
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run is **B14** (LoRA r=16 on B11, **AVG 0.540**). **B15 freeze-encoder closed** (0.529). **Next:** optional **LoRA rank sweep** (8/32) on B11 checkpoint; **PD-targeted analysis** on B14 decodes.
 
 ### `test_loss` vs generation metrics
 
 - Low **`test_loss`** does not guarantee good reports (e.g. **1k** run: loss **0.24**, AVG **0.436** — not comparable to 100k training, but illustrates the gap).
 - Near-zero **synthetic val loss** (S0) paired with weak real-test decode — do not optimize on val loss alone.
-
-### What to run next
-
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run stays **B11** (wd **0.01**, 5 epochs, **AVG 0.538**). **N0 (non-Flan t5-base)** AVG **0.439** — Flan required; non-Flan base closed. **Next:** **LoRA / freeze-encoder on Flan-T5-base (B11)** plus **PD-targeted analysis** (PD ~0.50 vs HC ~0.57).
+- **B14** has higher `test_loss` than B11 (1.166 vs 1.094) but higher decode AVG — reinforces using decode metrics for selection.
 
 ---
 
@@ -229,4 +249,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-12 (N0 non-Flan t5-base = AVG 0.439, −0.099 vs B11 0.538; Flan required. Next: LoRA/freeze on B11 + PD analysis). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-12 (B14 LoRA r=16 = **new best AVG 0.540**; B15 freeze-enc 0.529 closed. Next: LoRA rank sweep optional + PD analysis on B14). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
