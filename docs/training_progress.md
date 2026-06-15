@@ -249,7 +249,7 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run is **B17** (LoRA r=32, **AVG 0.542**). LoRA rank sweep **closed**. PD analysis **complete**. **Next:** PD-focused **prompt / data / template** levers (not more ranks).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run is **B17** (LoRA r=32, **AVG 0.542**). **Next:** **B18** — LoRA r=32 on B17 checkpoint, **5 ep** (`scripts/hpc/train_flan_t5_base_b18_lora32_5ep_a100.slurm`). After B18: PD-focused **prompt / data / template** levers if needed.
 
 ### `test_loss` vs generation metrics
 
