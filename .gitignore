@@ -8,10 +8,11 @@ main/_processed_smoke2/
 path/
 /data
 
-# Training outputs: ignore all under runs/ except metric JSONs and plot PNGs (sync via git).
+# Training outputs: ignore all under runs/ except metric JSONs, PD analysis, and plot PNGs (sync via git).
 /runs/**
 !/runs/**/
 !/runs/**/test_decode_metrics.json
 !/runs/**/test_eval.json
+!/runs/**/pd_analysis.json
 !/runs/**/*.png
 .env
