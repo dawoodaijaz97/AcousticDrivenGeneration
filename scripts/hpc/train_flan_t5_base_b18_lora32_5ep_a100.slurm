@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --gres=gpu:a100:1
 #SBATCH --partition=a100
-#SBATCH --time=36:00:00
+#SBATCH --time=24:00:00
 #SBATCH --job-name=flan_base_b18_lora32_5ep
 #SBATCH --output=runs/flan-t5-base/100k-flan-paper-5ep-lora32-5ep/slurm_%j.out
 #SBATCH --error=runs/flan-t5-base/100k-flan-paper-5ep-lora32-5ep/slurm_%j.err
