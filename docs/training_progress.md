@@ -48,11 +48,13 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B13 | flan-t5-base | 100k | 5e-4 | 1.159 | 0.581 | 0.351 | 0.495 | 0.342 | 0.814 | **0.517** |
 | N0 | t5-base | 100k | 5e-4 | 1.247 | 0.455 | 0.269 | 0.393 | 0.285 | 0.791 | **0.439** |
 | B15 | flan-t5-base | 100k | 5e-4 | 1.210 | 0.588 | 0.376 | 0.517 | 0.346 | 0.818 | **0.529** |
-| **B14** | flan-t5-base | 100k | 5e-4 | 1.166 | 0.605 | 0.385 | 0.528 | 0.360 | 0.823 | **0.540** |
+| B16 | flan-t5-base | 100k | 5e-4 | 1.150 | 0.600 | 0.383 | 0.529 | 0.357 | 0.823 | **0.538** |
+| B14 | flan-t5-base | 100k | 5e-4 | 1.166 | 0.604 | 0.383 | 0.528 | 0.360 | 0.823 | **0.540** |
+| **B17** | flan-t5-base | 100k | 5e-4 | 1.145 | 0.604 | 0.389 | 0.531 | 0.362 | 0.823 | **0.542** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B14** = B11 checkpoint + **LoRA rank 16**, 3 ep — **new best overall**. **B15** = freeze encoder, 3 ep — below B11; lever closed. **N0** = non-Flan t5-base — Flan required.
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B17** = B11 checkpoint + **LoRA rank 32**, 3 ep — **new best overall**. **B16** r=8 ties B11 (0.538); **B14** r=16 = 0.540. LoRA rank sweep **closed**. **B15** freeze encoder — below B11; lever closed.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005,100k-flan-paper-5ep-lora16,100k-flan-paper-5ep-freeze-enc}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005,100k-flan-paper-5ep-lora8,100k-flan-paper-5ep-lora16,100k-flan-paper-5ep-lora32,100k-flan-paper-5ep-freeze-enc}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -85,7 +87,9 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B13 | 0.486 | 0.548 | 0.367 |
 | N0 | 0.448 | 0.429 | 0.266 |
 | B15 | 0.499 | 0.560 | 0.369 |
-| **B14** | 0.512 | 0.568 | 0.383 |
+| B16 | 0.509 | 0.567 | 0.380 |
+| B14 | 0.512 | 0.568 | 0.383 |
+| **B17** | 0.513 | 0.571 | 0.383 |
 
 ---
 
@@ -193,19 +197,40 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **By group:** both groups weak vs B11; **HC collapses** — HC AVG **0.429** vs B11 **0.567** (−0.138), HC BLEU **0.266** vs **0.379**; PD AVG **0.448** vs B11 **0.510** (−0.062). PD slightly above HC on N0 (opposite of B11's HC-heavy pattern), but both far below Flan.
 - **Takeaway:** **Flan instruction tuning is essential** for this pipeline at base scale. **Non-Flan t5-base lever closed** — do not pursue vanilla T5-base.
 
-### Phase 4 — LoRA on B11 (B14) — new best (2026-06-12)
+### Phase 4 — LoRA on B11 (B14 / B16 / B17) — rank sweep closed (2026-06-12)
 
-- **B14** (B11 `final_model` + **LoRA rank 16**, 3 ep, 5e-4, wd 0.01) **beats B11 on decode:** AVG **0.540** vs **0.538** (+**0.002**); R-1 **0.605** vs **0.600**, R-2 **0.385** vs **0.384**, R-L **0.528** vs **0.527**, BLEU **0.360** vs **0.358**, BERT **0.823** vs **0.822**.
-- **`test_loss` 1.166** vs B11 **1.094** — slightly worse teacher-forced loss; decode metrics still improve (same decoupling pattern as before).
-- **By group:** **PD AVG 0.512** vs B11 **0.510** (+0.002); **HC AVG 0.568** vs B11 **0.567** (+0.001); **HC BLEU 0.383** vs **0.379**. First config to nudge **both** PD and HC above B11, though margins are small.
-- **Reporting config updates to B14** (`runs/flan-t5-base/100k-flan-paper-5ep-lora16/final_model`, beam 3).
+| Run | LoRA r | AVG | vs B11 (0.538) | PD AVG | HC AVG |
+|-----|--------|-----|----------------|--------|--------|
+| **B16** | 8 | **0.538** | ≈ tie | 0.509 | 0.567 |
+| **B14** | 16 | **0.540** | +0.002 | 0.512 | 0.568 |
+| **B17** | 32 | **0.542** | +**0.004** | **0.513** | **0.571** |
+
+- **B17** (LoRA **rank 32**, 3 ep from B11 `final_model`) is **new best overall:** AVG **0.542**; R-2 **0.389**, R-L **0.531**, BLEU **0.362**, BERT **0.823**; `test_loss` **1.145** (best among LoRA runs).
+- **B16** (rank **8**) **ties B11** on AVG (**0.538**) — lowest LoRA capacity is not enough.
+- **B14** (rank **16**) **0.540** — middle of sweep; still beats B11 but below B17.
+- **By group:** B17 lifts **both** PD (**0.513** vs B11 **0.510**) and HC (**0.571** vs **0.567**); largest HC gain in the sweep (+0.004 vs B11).
+- **Reporting config updates to B17** (`runs/flan-t5-base/100k-flan-paper-5ep-lora32/final_model`, beam 3). **LoRA rank sweep closed** — no further rank trials planned.
+
+### Phase 4 — LoRA on B11 (B14) — prior note
+
+- First LoRA win at r=16 (AVG **0.540**); superseded by **B17** r=32 (**0.542**).
 
 ### Phase 4 — freeze encoder on B11 (B15) — closed (2026-06-12)
 
 - **B15** (B11 `final_model`, **`--freeze-encoder`**, 3 ep) **does not beat B11:** AVG **0.529** vs **0.538** (−**0.009**); R-1 **0.588**, BLEU **0.346**, BERT **0.818**.
 - **`test_loss` 1.210** vs B11 **1.094**.
 - **By group:** **PD AVG 0.499** vs B11 **0.510** (−0.011); **HC AVG 0.560** vs **0.567** (−0.007); HC BLEU **0.369**. Regression on both groups vs B11.
-- **Takeaway:** **Freeze-encoder lever closed** for this recipe; **LoRA (B14) is the Phase 4 win.**
+- **Takeaway:** **Freeze-encoder lever closed** for this recipe; **LoRA (B17 r=32) is the Phase 4 win.**
+
+### PD-targeted analysis on B14 (2026-06-12)
+
+Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main/analyze_pd_decode` on B14 vs B11 predictions).
+
+- **Decode metrics vs structure:** B14 **AVG 0.540** / PD **0.512** / HC **0.568** look healthy, but **strict `Category (Severity):` slot parsing** finds only **~14% mean category coverage** in generated text (refs = **100%**). Same pattern on **B11** baseline (~14%) — not introduced by LoRA alone.
+- **Dominant parsed slot:** **Breathing** (~98% hyp presence in B11 baseline parse); **Lips–Intelligibility** slots are almost never emitted in the strict template (hyp presence **0–2%** per category on B11). Models still score on ROUGE/BLEU via overlapping free text, but **full 7-category mFDA structure is largely missing** in outputs.
+- **Severity match (where comparable):** B11 baseline **~49%** mean severity match (mostly Breathing); B14 vs B11 deltas — **PD severity match −0.01**, **HC +0.02** (HC gains, PD flat/slightly worse).
+- **Weakest PD examples:** many PD decodes parse as **1/7 categories** (Breathing only) with **0% severity match** on the comparable slot.
+- **Takeaway:** The PD/HC **decode AVG gap** (~0.06) is real, but the next lever is likely **template/structure** (prompt, training data mix, or constrained decoding) — not another LoRA rank. PD analysis task **complete**; see [Model Improvement Plan](Model%20Improvement%20Plan.md).
 
 ### Large @ 5 epochs (L5 vs B11) — size lever exhausted
 
@@ -216,15 +241,15 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 
 ### Model size
 
-- **Best run to date:** **B14 — LoRA rank 16 on B11 checkpoint, 3 ep** (**AVG 0.540**); previous best B11 (0.538, full fine-tune 5 ep).
+- **Best run to date:** **B17 — LoRA rank 32 on B11 checkpoint, 3 ep** (**AVG 0.542**); previous best B14 (0.540), B11 (0.538 full fine-tune 5 ep).
 - **Best full fine-tune:** **B11** (0.538).
 - **Best small @ 100k:** **S4** (**AVG 0.437**).
 - **Large:** L0/L4 (3 ep) ~0.500 → **L5 (5 ep) 0.536**, still only ties base — large is not worth its cost here.
-- **Persistent pattern: PD is the weak group** on full fine-tune (B11 PD 0.510 vs HC 0.567). **B14 LoRA** slightly lifts both (PD **0.512**, HC **0.568**) — still the main gap vs paper (~0.68).
+- **Persistent pattern: PD is the weak group** (B17 PD **0.513** vs HC **0.571**). LoRA rank sweep helps both slightly; **PD analysis** shows missing 7-slot report structure — main bottleneck vs paper (~0.68).
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run is **B14** (LoRA r=16 on B11, **AVG 0.540**). **B15 freeze-encoder closed** (0.529). **Next:** optional **LoRA rank sweep** (8/32) on B11 checkpoint; **PD-targeted analysis** on B14 decodes.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run is **B17** (LoRA r=32, **AVG 0.542**). LoRA rank sweep **closed**. PD analysis **complete**. **Next:** PD-focused **prompt / data / template** levers (not more ranks).
 
 ### `test_loss` vs generation metrics
 
@@ -249,4 +274,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-12 (B14 LoRA r=16 = **new best AVG 0.540**; B15 freeze-enc 0.529 closed. Next: LoRA rank sweep optional + PD analysis on B14). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-12 (B17 LoRA r=32 = **new best AVG 0.542**; B16 0.538; LoRA sweep closed. PD analysis on B14 complete — 7-slot structure largely missing). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*

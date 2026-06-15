@@ -13,11 +13,11 @@
 
 **Related:** [train.md](train.md), [eval-decode.md](eval-decode.md), [data-pipeline.md](data-pipeline.md), [paper-overview.md](paper-overview.md), [hpc-commands.md](hpc-commands.md) (queue, `salloc`, env, `scp`).
 
-**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: **B14** (AVG **0.540**) in [training_progress.md](training_progress.md).
+**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: **B17** (AVG **0.542**) in [training_progress.md](training_progress.md).
 
 **Best small @ 100k:** **S4** (`5e-4`, AVG **0.437**) — see [training_progress.md](training_progress.md). **S5** (`3e-4` @ 100k) completed but **below S0**; no further small LR runs planned.
 
-**Best run:** **B14** — B11 checkpoint + **LoRA rank 16**, 3 ep, LR **5e-4**, AVG **0.540** (beats B11 full fine-tune **0.538**; see [training_progress.md](training_progress.md)). **Best full fine-tune:** **B11** (0.538).
+**Best run:** **B17** — B11 checkpoint + **LoRA rank 32**, 3 ep, LR **5e-4**, AVG **0.542** (beats B14 **0.540** and B11 **0.538**; see [training_progress.md](training_progress.md)). **Best full fine-tune:** **B11** (0.538).
 
 ---
 
@@ -32,7 +32,7 @@
 - [x] Use [training_progress.md](training_progress.md) as the results log (append rows after each eval)
 - [x] Compare **checkpoints** vs `final_model` on **B5** (2026-05-29; use `final_model`, not val-loss step)
 - [ ] Optional: wandb / tensorboard (`--report-to`)
-- [ ] Per-category keyword/slot checks on decoded text
+- [x] Per-category keyword/slot checks on decoded text — **B14 PD analysis** (`main/analyze_pd_decode`, `pd_analysis.json`)
 - [ ] Wire `compute_metrics` + `--predict-with-generate` in `main/train.py` (medium priority)
 
 ### Model size — Flan-T5-small (~77M)
@@ -60,9 +60,11 @@
 - [x] **B12** — weight-decay **0.0** on B11 recipe — AVG **0.500** (regression vs B11 **0.538**); keep wd **0.01**
 - [x] **B13** — weight-decay **0.05** on B11 recipe — AVG **0.517** (regression vs B11 **0.538**); **weight-decay sweep closed**, keep wd **0.01**
 - [x] **N0** — non-Flan **`google-t5/t5-base`**, B11 recipe — AVG **0.439** (regression vs B11 **0.538**); **non-Flan base closed**
-- [x] **B14** — LoRA rank **16** on B11 `final_model`, 3 ep — AVG **0.540** (**new best overall**; PD **0.512**, HC **0.568**)
+- [x] **B14** — LoRA rank **16** on B11 `final_model`, 3 ep — AVG **0.540** (PD **0.512**, HC **0.568**)
+- [x] **B16** — LoRA rank **8** on B11 `final_model`, 3 ep — AVG **0.538** (ties B11; below B14)
+- [x] **B17** — LoRA rank **32** on B11 `final_model`, 3 ep — AVG **0.542** (**new best overall**; PD **0.513**, HC **0.571**)
 - [x] **B15** — freeze encoder on B11 `final_model`, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**
-- [ ] PD-targeted analysis (PD ~0.51 vs HC ~0.57 on B14 is still the bottleneck)
+- [x] PD-targeted analysis on **B14** — structural slot check (`pd_analysis.json`); see [training_progress.md](training_progress.md)
 
 ### Model size — Flan-T5-large
 
@@ -123,9 +125,9 @@
 
 ### Phase 4 — Efficiency (if quality plateaus)
 
-- [x] LoRA / adapters (`peft`, rank 16) on **Flan-T5-base (B11)** — **B14** AVG **0.540**, **new best**
+- [x] LoRA / adapters (`peft`, rank 8–32) on **Flan-T5-base (B11)** — **B17** r=32 **AVG 0.542** best; rank sweep **closed**
 - [x] Freeze encoder, train decoder on **Flan-T5-base (B11)** — **B15** AVG **0.529**, below B11; **closed**
-- [ ] Optional LoRA rank sweep (8 / 32) on B11 checkpoint — only if marginal gains justify cost
+- [x] Optional LoRA rank sweep (8 / 16 / 32) on B11 checkpoint — **B16 0.538**, **B14 0.540**, **B17 0.542**; **closed**
 - [x] Compare **`google-t5/t5-base`** (non-Flan) at same pipeline — **N0** AVG **0.439**, well below B11 **0.538**; **closed**
 - [ ] Optional: **`google-t5/t5-small`** (non-Flan) at same pipeline — deprioritized after N0
 
@@ -177,7 +179,7 @@
 
 | Action | Status |
 |--------|--------|
-| LoRA / adapters | [x] **B14** r=16 on B11 → AVG **0.540** (new best) |
+| LoRA / adapters | [x] **B14** r=16 → 0.540; **B16** r=8 → 0.538; **B17** r=32 → **0.542** (best); sweep closed |
 | Freeze encoder | [x] **B15** on B11 → AVG **0.529** (closed) |
 | Span-corruption pretrain | [ ] (out of scope unless plateau) |
 | FP16 on A100 | [ ] |
@@ -219,7 +221,9 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B12** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-wd0` | wd=**0.0**, 5 ep; AVG **0.500** (vs B11 **0.538**); HC collapse 0.493 vs 0.567; keep wd **0.01** |
 | **B13** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-wd005` | wd=**0.05**, 5 ep; AVG **0.517** (vs B11 **0.538**); PD 0.486 / HC 0.548; wd sweep closed |
 | **N0** | t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/t5-base/100k-flan-paper-5ep` | non-Flan **`google-t5/t5-base`**, B11 recipe; AVG **0.439** (−0.099 vs B11); HC 0.429 / PD 0.448; **non-Flan base closed** |
-| **B14** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora16` | LoRA **r=16** on B11 `final_model`, 3 ep; AVG **0.540** (**new best**); PD **0.512** / HC **0.568**; `test_loss` 1.166 |
+| **B14** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora16` | LoRA **r=16** on B11 `final_model`, 3 ep; AVG **0.540**; PD **0.512** / HC **0.568** |
+| **B16** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora8` | LoRA **r=8** on B11 `final_model`, 3 ep; AVG **0.538** (≈ B11); PD **0.509** / HC **0.567** |
+| **B17** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32` | LoRA **r=32** on B11 `final_model`, 3 ep; AVG **0.542** (**new best**); PD **0.513** / HC **0.571**; LoRA rank sweep closed |
 | **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
 
 ---
@@ -251,7 +255,9 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 13. [x] **N0 — non-Flan `google-t5/t5-base`**, B11 recipe — AVG **0.439** (regression vs B11 **0.538**); **non-Flan base closed**. Logged in [training_progress.md](training_progress.md).
 14. [x] **B14 — LoRA rank 16 on B11 `final_model`**, 3 ep — AVG **0.540** (**new best overall**; +0.002 vs B11); PD **0.512**, HC **0.568**. Logged in [training_progress.md](training_progress.md).
 15. [x] **B15 — freeze encoder on B11 `final_model`**, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**. Logged in [training_progress.md](training_progress.md).
-16. [ ] **Next:** **PD-targeted analysis** on B14 decodes (PD ~0.51 vs HC ~0.57); optional **LoRA rank sweep** (8/32).
+16. [x] **PD-targeted analysis on B14** — `pd_analysis.json`; models rarely emit full 7-slot `Category (Severity):` template (~14% parsed coverage); Breathing dominates; B14 vs B11: PD severity match slightly worse, HC slightly better. Logged in [training_progress.md](training_progress.md).
+17. [x] **B16 — LoRA rank 8** on B11 — AVG **0.538** (≈ tie B11); **B17 — LoRA rank 32** — AVG **0.542** (**new best**). **LoRA rank sweep closed.**
+18. [ ] **Next:** PD-focused training/data levers (not more LoRA ranks); optional longer LoRA fine-tune on B17 checkpoint.
 
 ---
 
@@ -670,4 +676,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-12. **B14** (LoRA r=16 on B11, 3 ep) is **new best** (AVG **0.540**). **B15** freeze-encoder **0.529** — closed. Next: PD analysis on B14; optional LoRA rank sweep. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-12. **B17** (LoRA r=32) is **new best** (AVG **0.542**). LoRA rank sweep closed (r=8/16/32). PD analysis on B14 complete. Next: PD-focused data/prompt levers. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
