@@ -13,11 +13,11 @@
 
 **Related:** [train.md](train.md), [eval-decode.md](eval-decode.md), [data-pipeline.md](data-pipeline.md), [paper-overview.md](paper-overview.md), [hpc-commands.md](hpc-commands.md) (queue, `salloc`, env, `scp`).
 
-**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: **B17** (AVG **0.542**) in [training_progress.md](training_progress.md).
+**Paper target (LLaMA-7B, ~Table 4 AVG):** ~**0.68**. Current best result: **B17** (AVG **0.542**; **B18** ≈ tie) in [training_progress.md](training_progress.md).
 
 **Best small @ 100k:** **S4** (`5e-4`, AVG **0.437**) — see [training_progress.md](training_progress.md). **S5** (`3e-4` @ 100k) completed but **below S0**; no further small LR runs planned.
 
-**Best run:** **B17** — B11 checkpoint + **LoRA rank 32**, 3 ep, LR **5e-4**, AVG **0.542** (beats B14 **0.540** and B11 **0.538**; see [training_progress.md](training_progress.md)). **Best full fine-tune:** **B11** (0.538).
+**Best run:** **B17** — B11 checkpoint + **LoRA rank 32**, 3 ep, LR **5e-4**, AVG **0.542** (beats B14 **0.540** and B11 **0.538**; see [training_progress.md](training_progress.md)). **B18** (LoRA r=32 on B17, 5 ep) ≈ **tie** (AVG **0.542**); **longer LoRA lever closed**. **Best full fine-tune:** **B11** (0.538).
 
 ---
 
@@ -63,7 +63,7 @@
 - [x] **B14** — LoRA rank **16** on B11 `final_model`, 3 ep — AVG **0.540** (PD **0.512**, HC **0.568**)
 - [x] **B16** — LoRA rank **8** on B11 `final_model`, 3 ep — AVG **0.538** (ties B11; below B14)
 - [x] **B17** — LoRA rank **32** on B11 `final_model`, 3 ep — AVG **0.542** (**new best overall**; PD **0.513**, HC **0.571**)
-- [ ] **B18** — LoRA rank **32** on B17 `final_model`, **5 ep** (longer LoRA fine-tune; same LR/wd as B17)
+- [x] **B18** — LoRA rank **32** on B17 `final_model`, **5 ep** — AVG **0.542** (≈ tie B17 **0.542**; PD **0.514**, HC **0.570**); **longer LoRA lever closed**
 - [x] **B15** — freeze encoder on B11 `final_model`, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**
 - [x] PD-targeted analysis on **B14** — structural slot check (`pd_analysis.json`); see [training_progress.md](training_progress.md)
 
@@ -129,7 +129,7 @@
 - [x] LoRA / adapters (`peft`, rank 8–32) on **Flan-T5-base (B11)** — **B17** r=32 **AVG 0.542** best; rank sweep **closed**
 - [x] Freeze encoder, train decoder on **Flan-T5-base (B11)** — **B15** AVG **0.529**, below B11; **closed**
 - [x] Optional LoRA rank sweep (8 / 16 / 32) on B11 checkpoint — **B16 0.538**, **B14 0.540**, **B17 0.542**; **closed**
-- [ ] **B18** — longer LoRA (r=32, **5 ep**) on B17 `final_model`
+- [x] **B18** — longer LoRA (r=32, **5 ep**) on B17 `final_model` — AVG **0.542** ≈ B17; **closed**
 - [x] Compare **`google-t5/t5-base`** (non-Flan) at same pipeline — **N0** AVG **0.439**, well below B11 **0.538**; **closed**
 - [ ] Optional: **`google-t5/t5-small`** (non-Flan) at same pipeline — deprioritized after N0
 
@@ -226,7 +226,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B14** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora16` | LoRA **r=16** on B11 `final_model`, 3 ep; AVG **0.540**; PD **0.512** / HC **0.568** |
 | **B16** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora8` | LoRA **r=8** on B11 `final_model`, 3 ep; AVG **0.538** (≈ B11); PD **0.509** / HC **0.567** |
 | **B17** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32` | LoRA **r=32** on B11 `final_model`, 3 ep; AVG **0.542** (**new best**); PD **0.513** / HC **0.571**; LoRA rank sweep closed |
-| **B18** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-5ep` | LoRA **r=32** on B17 `final_model`, **5 ep**; tests longer adapter training (PD lever) |
+| **B18** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-5ep` | LoRA **r=32** on B17 `final_model`, **5 ep**; AVG **0.542** (≈ tie B17); PD **0.514** / HC **0.570**; **longer LoRA closed** |
 | **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
 
 ---
@@ -260,8 +260,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 15. [x] **B15 — freeze encoder on B11 `final_model`**, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**. Logged in [training_progress.md](training_progress.md).
 16. [x] **PD-targeted analysis on B14** — `pd_analysis.json`; models rarely emit full 7-slot `Category (Severity):` template (~14% parsed coverage); Breathing dominates; B14 vs B11: PD severity match slightly worse, HC slightly better. Logged in [training_progress.md](training_progress.md).
 17. [x] **B16 — LoRA rank 8** on B11 — AVG **0.538** (≈ tie B11); **B17 — LoRA rank 32** — AVG **0.542** (**new best**). **LoRA rank sweep closed.**
-18. [ ] **B18 — LoRA rank 32 on B17 `final_model`, 5 ep** — longer adapter fine-tune (`scripts/hpc/train_flan_t5_base_b18_lora32_5ep_a100.slurm`); then `eval_decode` + log in [training_progress.md](training_progress.md).
-19. [ ] **After B18:** PD-focused **prompt / data / template** levers if B18 does not beat **0.542**.
+18. [x] **B18 — LoRA rank 32 on B17 `final_model`, 5 ep** — AVG **0.542** (≈ tie B17 **0.542**); PD **0.514** / HC **0.570**. **Longer LoRA lever closed.** Logged in [training_progress.md](training_progress.md).
+19. [ ] **Next:** PD-focused **prompt / data / template** levers (7-slot structure; see B14 `pd_analysis.json`).
 
 ---
 
@@ -710,4 +710,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-15. **B17** (LoRA r=32) is **new best** (AVG **0.542**). **B18** queued — LoRA r=32 on B17 checkpoint, 5 ep. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-15. **B17** (LoRA r=32, 3 ep) remains **best reporting config** (AVG **0.542**). **B18** (5 ep on B17) ≈ tie — longer LoRA **closed**. Next: PD-focused prompt/data/template levers. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*

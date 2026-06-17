@@ -51,10 +51,11 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B16 | flan-t5-base | 100k | 5e-4 | 1.150 | 0.600 | 0.383 | 0.529 | 0.357 | 0.823 | **0.538** |
 | B14 | flan-t5-base | 100k | 5e-4 | 1.166 | 0.604 | 0.383 | 0.528 | 0.360 | 0.823 | **0.540** |
 | **B17** | flan-t5-base | 100k | 5e-4 | 1.145 | 0.604 | 0.389 | 0.531 | 0.362 | 0.823 | **0.542** |
+| B18 | flan-t5-base | 100k | 5e-4 | 1.145 | 0.605 | 0.390 | 0.530 | 0.362 | 0.823 | **0.542** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B17** = B11 checkpoint + **LoRA rank 32**, 3 ep — **new best overall**. **B16** r=8 ties B11 (0.538); **B14** r=16 = 0.540. LoRA rank sweep **closed**. **B15** freeze encoder — below B11; lever closed.
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B17** = B11 checkpoint + **LoRA rank 32**, 3 ep — **best reporting config** (AVG **0.542**). **B18** = LoRA r=32 on B17, **5 ep** — **≈ tie** B17 (AVG **0.542**); **longer LoRA lever closed**. **B16** r=8 ties B11 (0.538); **B14** r=16 = 0.540. LoRA rank sweep **closed**. **B15** freeze encoder — below B11; lever closed.
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005,100k-flan-paper-5ep-lora8,100k-flan-paper-5ep-lora16,100k-flan-paper-5ep-lora32,100k-flan-paper-5ep-freeze-enc}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005,100k-flan-paper-5ep-lora8,100k-flan-paper-5ep-lora16,100k-flan-paper-5ep-lora32,100k-flan-paper-5ep-lora32-5ep,100k-flan-paper-5ep-freeze-enc}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -90,6 +91,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B16 | 0.509 | 0.567 | 0.380 |
 | B14 | 0.512 | 0.568 | 0.383 |
 | **B17** | 0.513 | 0.571 | 0.383 |
+| B18 | 0.514 | 0.570 | 0.384 |
 
 ---
 
@@ -211,6 +213,13 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **By group:** B17 lifts **both** PD (**0.513** vs B11 **0.510**) and HC (**0.571** vs **0.567**); largest HC gain in the sweep (+0.004 vs B11).
 - **Reporting config updates to B17** (`runs/flan-t5-base/100k-flan-paper-5ep-lora32/final_model`, beam 3). **LoRA rank sweep closed** — no further rank trials planned.
 
+### Phase 4 — longer LoRA on B17 (B18) — closed (2026-06-15)
+
+- **B18** (LoRA **rank 32** on B17 `final_model`, **5 ep**, same LR/wd as B17) **≈ ties B17** on decode: AVG **0.542** vs **0.542** (+0.0002, within noise); R-1 **0.605** vs **0.604**, R-2 **0.390** vs **0.389**, R-L **0.530** vs **0.531**, BLEU **0.362** (tie), BERT **0.823** (tie).
+- **`test_loss` 1.145** — identical to B17 **1.145** (epoch 5.0).
+- **By group:** **PD AVG 0.514** vs B17 **0.513** (+0.001); **HC AVG 0.570** vs **0.571** (−0.001); HC BLEU **0.384** vs **0.383** (+0.001). Tiny PD lift, tiny HC regression — no clear win.
+- **Takeaway:** **Longer LoRA fine-tune lever closed** — 2 extra epochs on the B17 checkpoint buy nothing meaningful. **Keep B17** as reporting config (same AVG with less compute). Next lever: **PD-focused prompt / data / template** (7-slot structure).
+
 ### Phase 4 — LoRA on B11 (B14) — prior note
 
 - First LoRA win at r=16 (AVG **0.540**); superseded by **B17** r=32 (**0.542**).
@@ -241,15 +250,15 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### Model size
 
-- **Best run to date:** **B17 — LoRA rank 32 on B11 checkpoint, 3 ep** (**AVG 0.542**); previous best B14 (0.540), B11 (0.538 full fine-tune 5 ep).
+- **Best run to date:** **B17 — LoRA rank 32 on B11 checkpoint, 3 ep** (**AVG 0.542**); **B18** (5 ep on B17) ≈ tie. Previous best B14 (0.540), B11 (0.538 full fine-tune 5 ep).
 - **Best full fine-tune:** **B11** (0.538).
 - **Best small @ 100k:** **S4** (**AVG 0.437**).
 - **Large:** L0/L4 (3 ep) ~0.500 → **L5 (5 ep) 0.536**, still only ties base — large is not worth its cost here.
-- **Persistent pattern: PD is the weak group** (B17 PD **0.513** vs HC **0.571**). LoRA rank sweep helps both slightly; **PD analysis** shows missing 7-slot report structure — main bottleneck vs paper (~0.68).
+- **Persistent pattern: PD is the weak group** (B17 PD **0.513** vs HC **0.571**; B18 PD **0.514** vs HC **0.570**). LoRA rank + longer LoRA both plateau; **PD analysis** shows missing 7-slot report structure — main bottleneck vs paper (~0.68).
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best run is **B17** (LoRA r=32, **AVG 0.542**). **Next:** **B18** — LoRA r=32 on B17 checkpoint, **5 ep** (`scripts/hpc/train_flan_t5_base_b18_lora32_5ep_a100.slurm`). After B18: PD-focused **prompt / data / template** levers if needed.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (LoRA r=32, **AVG 0.542**). **B18 closed** (≈ tie). **Next:** PD-focused **prompt / data / template** levers (7-slot structure; see B14 `pd_analysis.json`).
 
 ### `test_loss` vs generation metrics
 
@@ -274,4 +283,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-12 (B17 LoRA r=32 = **new best AVG 0.542**; B16 0.538; LoRA sweep closed. PD analysis on B14 complete — 7-slot structure largely missing). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-15 (**B18** LoRA r=32, 5 ep on B17 ≈ tie **AVG 0.542**; longer LoRA closed. **B17** remains best reporting config). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*

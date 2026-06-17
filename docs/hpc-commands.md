@@ -118,7 +118,7 @@ Examples: `scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm` (B5), `tra
 
 ## Sync metric JSONs (git — not scp)
 
-Only `**test_decode_metrics.json`** and `**test_eval.json**` under `runs/` are tracked (see `.gitignore`). Checkpoints, `final_model/`, and Slurm logs stay local on HPC.
+Only `**test_decode_metrics.json`** and `**test_eval.json`** under `runs/` are tracked (see `.gitignore`). Checkpoints, `final_model/`, and Slurm logs stay local on HPC.
 
 **On HPC after eval / train:**
 
