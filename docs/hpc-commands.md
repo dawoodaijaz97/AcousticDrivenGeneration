@@ -110,7 +110,7 @@ sbatch.tinygpu scripts/hpc/YOUR_JOB.slurm
 tail -f runs/<model>/<run>/slurm_JOBID.out
 ```
 
-Examples: `scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm` (B5), `train_flan_t5_small_100k_lr5e4_a100.slurm` (S4), `train_flan_t5_base_b18_lora32_5ep_a100.slurm` (B18).
+Examples: `scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm` (B5), `train_flan_t5_small_100k_lr5e4_a100.slurm` (S4), `prepare_flan_t5_base_b19_report_template.sh` + `train_flan_t5_base_b19_report_template_lora32_a100.slurm` (B19).
 
 **Prepare and decode eval** (login or interactive GPU): see [data-pipeline.md](data-pipeline.md), [train.md](train.md), [eval-decode.md](eval-decode.md), [Model Improvement Plan.md](Model%20Improvement%20Plan.md).
 

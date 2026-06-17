@@ -109,6 +109,7 @@ Suggested experiment IDs (log in [training_progress.md](training_progress.md)):
 - **B14** — LoRA on B11 checkpoint, rank 16, 3 epochs, same LR/wd as B11  
 - **B15** — freeze encoder on B11 checkpoint, 3–5 epochs, same LR/wd as B11  
 - **B18** — LoRA rank 32 on **B17** `final_model`, **5 epochs** — AVG **0.542** (≈ tie B17); **closed**
+- **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17, 3 ep (`scripts/hpc/prepare_flan_t5_base_b19_report_template.sh`)
 
 **LoRA example (B14-style):**
 
@@ -164,7 +165,7 @@ Until results are logged, continue **PD analysis** (group balance, decode PD/HC 
 
 Upstream CSVs provide an **`Instructions`** field; [`etl/etl_lib.py`](../etl/etl_lib.py) parses **seven numeric biomarkers** in fixed order: **Breathing, Lips, Palate, Larynx, Monotonicity, Tongue, Intelligibility**. They are formatted into a single string **`input_text`** (e.g. `Breathing: … Lips: …` with stable spacing and precision).
 
-For T5-style models, [`main/prompts.py`](../main/prompts.py) prepends a task prefix to build **`source_text`** (see `--prompt-style` in `main.prepare`: **`default`** = mFDA biomarker instruction; **`flan-paper`** = `Generate a report for:`; **`flan-paper-categories`** = paper prefix + explicit seven mFDA category hints; **`flan-paper-numeric-labels`** = paper prefix + deterministic `Category=value` formatting for the seven biomarkers). [`main/tokenization.py`](../main/tokenization.py) tokenizes that into **`input_ids`** / **`attention_mask`** for the **encoder**.
+For T5-style models, [`main/prompts.py`](../main/prompts.py) prepends a task prefix to build **`source_text`** (see `--prompt-style` in `main.prepare`: **`default`** = mFDA biomarker instruction; **`flan-paper`** = `Generate a report for:`; **`flan-paper-categories`** = paper prefix + explicit seven mFDA category hints; **`flan-paper-numeric-labels`** = paper prefix + deterministic `Category=value` formatting for the seven biomarkers; **`flan-paper-report-template`** = seven-slot `Category (Severity):` output template + biomarkers (B19)). [`main/tokenization.py`](../main/tokenization.py) tokenizes that into **`input_ids`** / **`attention_mask`** for the **encoder**.
 
 So the model does **not** consume a separate continuous feature tensor; it sees **text derived from the seven numbers** plus the prefix.
 

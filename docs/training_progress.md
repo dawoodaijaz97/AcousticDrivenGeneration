@@ -258,7 +258,7 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (LoRA r=32, **AVG 0.542**). **B18 closed** (≈ tie). **Next:** PD-focused **prompt / data / template** levers (7-slot structure; see B14 `pd_analysis.json`).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (LoRA r=32, **AVG 0.542**). **B18 closed** (≈ tie). **Next:** **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17 (`scripts/hpc/prepare_flan_t5_base_b19_report_template.sh` → train → eval + `pd_analysis`).
 
 ### `test_loss` vs generation metrics
 

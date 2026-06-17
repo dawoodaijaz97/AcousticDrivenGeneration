@@ -68,14 +68,21 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--max-target-length", type=int, default=512)
     p.add_argument(
         "--prompt-style",
-        choices=("default", "flan-paper", "flan-paper-categories", "flan-paper-numeric-labels"),
+        choices=(
+            "default",
+            "flan-paper",
+            "flan-paper-categories",
+            "flan-paper-numeric-labels",
+            "flan-paper-report-template",
+        ),
         default="default",
         help=(
             "Encoder task prefix: default = mFDA biomarker instruction; "
             "flan-paper = 'Generate a report for:' (Phase 2 / B5); "
             "flan-paper-categories = paper prefix + explicit seven mFDA category hints (Phase 2 / B6); "
             "flan-paper-numeric-labels = paper prefix + deterministic key/value formatting "
-            "for the seven categories (Phase 2 / B7)."
+            "for the seven categories (Phase 2 / B7); "
+            "flan-paper-report-template = seven-slot Category (Severity): output template (Phase 2 / B19)."
         ),
     )
     p.add_argument(

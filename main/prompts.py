@@ -22,6 +22,14 @@ FLAN_PAPER_NUMERIC_LABELS_TASK_PREFIX = (
     "(0 to 100; higher means more severe):"
 )
 
+# Flan-T5 Phase 2 variant (B19): explicit seven-slot output template (PD structure lever).
+FLAN_PAPER_REPORT_TEMPLATE_TASK_PREFIX = (
+    "Generate an mFDA report. Each category must appear as "
+    "Category (Normal|Mild|Moderate|Severe): description. "
+    "Order: Breathing, Lips, Palate, Larynx, Monotonicity, Tongue, Intelligibility. "
+    "Biomarkers:"
+)
+
 FEATURE_ORDER: tuple[str, ...] = (
     "Breathing",
     "Lips",
@@ -37,6 +45,7 @@ PROMPT_STYLES: dict[str, str] = {
     "flan-paper": FLAN_PAPER_TASK_PREFIX,
     "flan-paper-categories": FLAN_PAPER_CATEGORIES_TASK_PREFIX,
     "flan-paper-numeric-labels": FLAN_PAPER_NUMERIC_LABELS_TASK_PREFIX,
+    "flan-paper-report-template": FLAN_PAPER_REPORT_TEMPLATE_TASK_PREFIX,
 }
 
 
