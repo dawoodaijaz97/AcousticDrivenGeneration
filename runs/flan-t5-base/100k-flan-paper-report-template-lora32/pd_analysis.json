@@ -1,0 +1,216 @@
+{
+  "predictions_json": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/runs/flan-t5-base/100k-flan-paper-report-template-lora32/test_decode_predictions.json",
+  "model_path": "/home/woody/iwi5/iwi5439h/AcousticDrivenGeneration/runs/flan-t5-base/100k-flan-paper-report-template-lora32/final_model",
+  "analysis": {
+    "n": 96,
+    "mean_coverage_hyp": 0.1429,
+    "mean_coverage_ref": 1.0,
+    "mean_severity_match": 0.5104,
+    "by_group": {
+      "PD": {
+        "n": 48,
+        "mean_coverage_hyp": 0.1429,
+        "mean_coverage_ref": 1.0,
+        "mean_severity_match": 0.4792
+      },
+      "HC": {
+        "n": 48,
+        "mean_coverage_hyp": 0.1429,
+        "mean_coverage_ref": 1.0,
+        "mean_severity_match": 0.5417
+      }
+    },
+    "per_category": {
+      "Breathing": {
+        "ref_presence_rate": 1.0,
+        "hyp_presence_rate": 0.9896,
+        "severity_match_rate": 0.5,
+        "pd_mismatch_examples": [
+          {
+            "sample_id": "004PD",
+            "ref": "Severe",
+            "hyp": "Mild"
+          },
+          {
+            "sample_id": "005PD",
+            "ref": "Severe",
+            "hyp": "Moderate"
+          },
+          {
+            "sample_id": "006PD",
+            "ref": "Severe",
+            "hyp": "Moderate"
+          }
+        ]
+      },
+      "Lips": {
+        "ref_presence_rate": 1.0,
+        "hyp_presence_rate": 0.0104,
+        "severity_match_rate": 0.0104,
+        "pd_mismatch_examples": []
+      },
+      "Palate": {
+        "ref_presence_rate": 1.0,
+        "hyp_presence_rate": 0.0,
+        "severity_match_rate": 0.0,
+        "pd_mismatch_examples": []
+      },
+      "Larynx": {
+        "ref_presence_rate": 1.0,
+        "hyp_presence_rate": 0.0,
+        "severity_match_rate": 0.0,
+        "pd_mismatch_examples": []
+      },
+      "Monotonicity": {
+        "ref_presence_rate": 1.0,
+        "hyp_presence_rate": 0.0,
+        "severity_match_rate": 0.0,
+        "pd_mismatch_examples": []
+      },
+      "Tongue": {
+        "ref_presence_rate": 1.0,
+        "hyp_presence_rate": 0.0,
+        "severity_match_rate": 0.0,
+        "pd_mismatch_examples": []
+      },
+      "Intelligibility": {
+        "ref_presence_rate": 1.0,
+        "hyp_presence_rate": 0.0,
+        "severity_match_rate": 0.0,
+        "pd_mismatch_examples": []
+      }
+    },
+    "weakest_pd_examples": [
+      {
+        "sample_id": "004PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "005PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "006PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "009PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "010PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "012PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "013PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "016PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "017PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      },
+      {
+        "sample_id": "022PD",
+        "coverage_hyp": 0.1429,
+        "severity_match": 0.0,
+        "missing_categories": [
+          "Lips",
+          "Palate",
+          "Larynx",
+          "Monotonicity",
+          "Tongue",
+          "Intelligibility"
+        ]
+      }
+    ]
+  }
+}
