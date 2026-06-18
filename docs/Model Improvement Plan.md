@@ -67,6 +67,7 @@
 - [x] **B15** — freeze encoder on B11 `final_model`, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**
 - [x] PD-targeted analysis on **B14** — structural slot check (`pd_analysis.json`); see [training_progress.md](training_progress.md)
 - [x] **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17, 3 ep — AVG **0.540** (below B17 **0.542**); category coverage **≈14%** unchanged; **template prompt closed**
+- [ ] **B20** — **PD 2× oversample** + LoRA r=32 on B17, 3 ep (same `flan-paper` data; no re-prepare)
 
 ### Model size — Flan-T5-large
 
@@ -177,6 +178,7 @@
 | Fast 1k smoke runs | [x] |
 | `google-t5/t5-base` comparison | [x] **N0** AVG **0.439** vs B11 **0.538** — closed |
 | `google-t5/t5-small` comparison | [ ] deprioritized after N0 |
+| PD group oversampling (B20) | [ ] |
 | `--no-eval-train` trial | [ ] |
 | Leakage audit | [ ] |
 
@@ -231,6 +233,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B17** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32` | LoRA **r=32** on B11 `final_model`, 3 ep; AVG **0.542** (**new best**); PD **0.513** / HC **0.571**; LoRA rank sweep closed |
 | **B18** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-5ep` | LoRA **r=32** on B17 `final_model`, **5 ep**; AVG **0.542** (≈ tie B17); PD **0.514** / HC **0.570**; **longer LoRA closed** |
 | **B19** | flan-t5-base | 100k | flan-paper-report-template | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-report-template-lora32` | LoRA **r=32** on B17, 3 ep; AVG **0.540** (vs B17 **0.542**); PD **0.509** / HC **0.572**; `pd_analysis` coverage **0.143** (≈ B17); **template prompt closed** |
+| **B20** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x` | LoRA **r=32** on B17, 3 ep; **`--oversample-group PD --oversample-factor 2`**; PD structure lever |
 | **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
 
 ---
@@ -266,7 +269,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 17. [x] **B16 — LoRA rank 8** on B11 — AVG **0.538** (≈ tie B11); **B17 — LoRA rank 32** — AVG **0.542** (**new best**). **LoRA rank sweep closed.**
 18. [x] **B18 — LoRA rank 32 on B17 `final_model`, 5 ep** — AVG **0.542** (≈ tie B17 **0.542**); PD **0.514** / HC **0.570**. **Longer LoRA lever closed.** Logged in [training_progress.md](training_progress.md).
 19. [x] **B19 — `flan-paper-report-template` + LoRA r=32 on B17**, 3 ep — AVG **0.540** (below B17 **0.542**); `pd_analysis` category coverage **0.143** (≈ unchanged); **template prompt lever closed.** Logged in [training_progress.md](training_progress.md).
-20. [ ] **Next:** PD levers beyond prefix text — PD oversampling, constrained decoding, or target-side template training (see B14 `pd_analysis.json`).
+20. [ ] **B20 — PD 2× oversample + LoRA r=32 on B17**, 3 ep — train → `eval_decode` + `analyze_pd_decode`; log in [training_progress.md](training_progress.md).
+21. [ ] **After B20:** constrained decoding or further data levers if PD oversampling does not lift PD AVG / category coverage.
 
 ---
 
@@ -553,6 +557,41 @@ sed -i 's/\r$//' scripts/hpc/eval_flan_t5_base_b19_report_template_lora32_a100.s
 sbatch.tinygpu scripts/hpc/eval_flan_t5_base_b19_report_template_lora32_a100.slurm
 ```
 
+**B20 train (A100 — PD 2× oversample + LoRA r=32 on B17, 3 ep; reuses B5 tokenized data):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_b20_pd_oversample_lora32_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_b20_pd_oversample_lora32_a100.slurm
+```
+
+**B20 decode eval + PD structure analysis (GPU — after train):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x/test_decode_metrics.json \
+  --output-predictions-json runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x/test_decode_predictions.json \
+  --batch-size 8 --seed 42 \
+  --require-gpu
+
+python -m main.analyze_pd_decode \
+  --predictions-json runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x/test_decode_predictions.json \
+  --output-json runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x/pd_analysis.json
+```
+
+Or batch eval via Slurm:
+
+```bash
+sed -i 's/\r$//' scripts/hpc/eval_flan_t5_base_b20_pd_oversample_lora32_a100.slurm
+sbatch.tinygpu scripts/hpc/eval_flan_t5_base_b20_pd_oversample_lora32_a100.slurm
+```
+
 **B15 train (A100 — freeze encoder on B11 `final_model`, 3 ep):**
 
 ```bash
@@ -764,4 +803,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-15. **B17** remains best reporting config (AVG **0.542**). **B19 closed** — output-template prefix did not lift decode AVG or 7-slot coverage. Next: PD oversampling / constrained decoding. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-15. **B17** remains best reporting config (AVG **0.542**). **B19 closed**. **B20 queued** — PD 2× oversample + LoRA on B17. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*

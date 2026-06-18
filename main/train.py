@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 import torch
-from datasets import Dataset, load_from_disk
+from datasets import Dataset, concatenate_datasets, load_from_disk
 from datasets.config import DATASETDICT_JSON_FILENAME
 from transformers import (
     AutoModelForSeq2SeqLM,
@@ -196,6 +196,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Freeze encoder weights; train decoder only (Phase 4). Mutually exclusive with --lora-rank > 0.",
     )
+    p.add_argument(
+        "--oversample-group",
+        type=str,
+        default=None,
+        choices=("PD", "HC"),
+        help="Duplicate train rows from this group before training (requires 'group' column in tokenized data).",
+    )
+    p.add_argument(
+        "--oversample-factor",
+        type=float,
+        default=2.0,
+        help=(
+            "Target multiplier for --oversample-group row count (default 2.0 = one extra copy of each "
+            "group row). Must be > 1.0. Fractional part adds a random subset of that size (seeded)."
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -203,6 +219,50 @@ def _maybe_subset(ds: Dataset, n: int | None) -> Dataset:
     if n is None or n >= len(ds):
         return ds
     return ds.select(range(n))
+
+
+def _count_group(ds: Dataset, label: str) -> int:
+    if "group" not in ds.column_names:
+        return 0
+    return sum(1 for g in ds["group"] if g == label)
+
+
+def _oversample_group(ds: Dataset, group: str, factor: float, *, seed: int) -> Dataset:
+    if factor <= 1.0:
+        return ds
+    if "group" not in ds.column_names:
+        raise SystemExit(
+            f"--oversample-group {group} requires a 'group' column in the tokenized train split."
+        )
+    group_idx = [i for i, g in enumerate(ds["group"]) if g == group]
+    if not group_idx:
+        raise SystemExit(f"No train rows with group={group!r} for --oversample-group.")
+
+    before = len(group_idx)
+    full_extra = max(0, int(factor) - 1)
+    frac = factor - int(factor)
+    parts: list[Dataset] = [ds]
+    for _ in range(full_extra):
+        parts.append(ds.select(group_idx))
+    extra_n = int(round(before * frac)) if frac > 0 else 0
+    if extra_n > 0:
+        import random
+
+        rng = random.Random(seed)
+        if extra_n >= before:
+            sampled = list(group_idx) * (extra_n // before)
+            sampled.extend(rng.sample(group_idx, k=extra_n % before))
+        else:
+            sampled = rng.sample(group_idx, k=extra_n)
+        parts.append(ds.select(sampled))
+
+    out = concatenate_datasets(parts)
+    after = _count_group(out, group)
+    _log(
+        f"oversample_group  = {group} factor={factor} "
+        f"({before:,} -> {after:,} rows; train {len(ds):,} -> {len(out):,})"
+    )
+    return out
 
 
 def _metrics_for_json(metrics: dict) -> dict[str, float | int | str | None]:
@@ -355,6 +415,15 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("DatasetDict must contain 'train' and 'val' splits.")
 
     train_ds = _maybe_subset(raw["train"], args.max_train_samples)
+    if args.oversample_group:
+        if args.oversample_factor <= 1.0:
+            raise SystemExit("--oversample-factor must be > 1.0 when --oversample-group is set.")
+        train_ds = _oversample_group(
+            train_ds,
+            args.oversample_group,
+            args.oversample_factor,
+            seed=args.seed,
+        )
     eval_ds = _maybe_subset(raw["val"], args.max_eval_samples)
     test_ds: Dataset | None = None
     if "test" in raw:
@@ -514,6 +583,8 @@ def main(argv: list[str] | None = None) -> int:
             "lora_alpha": args.lora_alpha if args.lora_alpha is not None else (args.lora_rank * 2 if args.lora_rank > 0 else None),
             "lora_dropout": args.lora_dropout if args.lora_rank > 0 else None,
             "freeze_encoder": args.freeze_encoder,
+            "oversample_group": args.oversample_group,
+            "oversample_factor": args.oversample_factor if args.oversample_group else None,
         }
         report_path = out / "test_eval.json"
         report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")

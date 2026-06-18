@@ -110,6 +110,7 @@ Suggested experiment IDs (log in [training_progress.md](training_progress.md)):
 - **B15** — freeze encoder on B11 checkpoint, 3–5 epochs, same LR/wd as B11  
 - **B18** — LoRA rank 32 on **B17** `final_model`, **5 epochs** — AVG **0.542** (≈ tie B17); **closed**
 - **B19** — `flan-paper-report-template` + LoRA r=32 on B17, 3 ep — AVG **0.540** (below B17); category coverage **≈14%** unchanged; **closed**
+- **B20** — PD **2× oversample** + LoRA r=32 on B17, 3 ep (`--oversample-group PD --oversample-factor 2`; `scripts/hpc/train_flan_t5_base_b20_pd_oversample_lora32_a100.slurm`)
 
 **LoRA example (B14-style):**
 
@@ -239,6 +240,8 @@ Intermediate checkpoints live directly under **`--output-dir`** (subject to **`-
 | `--lora-alpha` | *(2 × rank)* | LoRA scaling alpha. |
 | `--lora-dropout` | `0.05` | LoRA dropout. |
 | `--freeze-encoder` | off | Train decoder only; mutually exclusive with `--lora-rank` > 0. |
+| `--oversample-group` | *(none)* | Duplicate train rows from **`PD`** or **`HC`** before training (requires `group` column). |
+| `--oversample-factor` | `2.0` | Target multiplier for oversampled group count (must be **> 1.0**). |
 
 ## Example commands
 

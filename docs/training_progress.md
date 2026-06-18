@@ -268,7 +268,7 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (AVG **0.542**). **B19 closed** — template prompt did not lift AVG or 7-slot coverage. **Next:** PD oversampling or constrained decoding.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (AVG **0.542**). **B19 closed**. **Next:** **B20** — PD 2× oversample + LoRA on B17 (`scripts/hpc/train_flan_t5_base_b20_pd_oversample_lora32_a100.slurm`).
 
 ### `test_loss` vs generation metrics
 
