@@ -66,7 +66,7 @@
 - [x] **B18** — LoRA rank **32** on B17 `final_model`, **5 ep** — AVG **0.542** (≈ tie B17 **0.542**; PD **0.514**, HC **0.570**); **longer LoRA lever closed**
 - [x] **B15** — freeze encoder on B11 `final_model`, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**
 - [x] PD-targeted analysis on **B14** — structural slot check (`pd_analysis.json`); see [training_progress.md](training_progress.md)
-- [ ] **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17, 3 ep (7-slot output template; PD structure lever)
+- [x] **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17, 3 ep — AVG **0.540** (below B17 **0.542**); category coverage **≈14%** unchanged; **template prompt closed**
 
 ### Model size — Flan-T5-large
 
@@ -116,7 +116,7 @@
 - [x] **B5** — Flan paper prefix `Generate a report for:` (`--prompt-style flan-paper`)
 - [x] Category hints in prefix (seven mFDA categories; **B6** completed 2026-05-30, below B5)
 - [x] Numeric formatting / category labels in feature string (**B7** completed 2026-05-31; below B5)
-- [ ] **B19** — seven-slot `Category (Severity):` output template in prefix (`flan-paper-report-template`)
+- [x] **B19** — seven-slot `Category (Severity):` output template in prefix (`flan-paper-report-template`) — AVG **0.540**, coverage **≈14%** unchanged vs B17; **closed**
 - [x] `max_source_length` / `max_target_length` — no silent truncation at 256/512 (see [training_progress.md](training_progress.md))
 - [x] Re-prepare → re-train **B4** recipe on **flan-paper** prompt — **B5** (`scripts/hpc/train_flan_t5_base_100k_flan_paper_a100.slurm`)
 
@@ -166,7 +166,7 @@
 | Flan paper prefix (B5) | [x] |
 | Category hints in prefix (B6 completed; below B5) | [x] |
 | Numeric formatting / category labels (B7 completed; below B5) | [x] |
-| Seven-slot output template in prefix (B19) | [ ] |
+| Seven-slot output template in prefix (B19) | [x] (below B17; coverage unchanged) |
 | `max_source_length` / `max_target_length` audit | [x] (B5 data; 256/512 OK) |
 
 ### D. Data and splits
@@ -230,7 +230,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B16** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora8` | LoRA **r=8** on B11 `final_model`, 3 ep; AVG **0.538** (≈ B11); PD **0.509** / HC **0.567** |
 | **B17** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32` | LoRA **r=32** on B11 `final_model`, 3 ep; AVG **0.542** (**new best**); PD **0.513** / HC **0.571**; LoRA rank sweep closed |
 | **B18** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-5ep` | LoRA **r=32** on B17 `final_model`, **5 ep**; AVG **0.542** (≈ tie B17); PD **0.514** / HC **0.570**; **longer LoRA closed** |
-| **B19** | flan-t5-base | 100k | flan-paper-report-template | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-report-template-lora32` | LoRA **r=32** on B17 `final_model`, 3 ep; seven-slot `Category (Severity):` output template in prefix |
+| **B19** | flan-t5-base | 100k | flan-paper-report-template | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-report-template-lora32` | LoRA **r=32** on B17, 3 ep; AVG **0.540** (vs B17 **0.542**); PD **0.509** / HC **0.572**; `pd_analysis` coverage **0.143** (≈ B17); **template prompt closed** |
 | **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
 
 ---
@@ -265,8 +265,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 16. [x] **PD-targeted analysis on B14** — `pd_analysis.json`; models rarely emit full 7-slot `Category (Severity):` template (~14% parsed coverage); Breathing dominates; B14 vs B11: PD severity match slightly worse, HC slightly better. Logged in [training_progress.md](training_progress.md).
 17. [x] **B16 — LoRA rank 8** on B11 — AVG **0.538** (≈ tie B11); **B17 — LoRA rank 32** — AVG **0.542** (**new best**). **LoRA rank sweep closed.**
 18. [x] **B18 — LoRA rank 32 on B17 `final_model`, 5 ep** — AVG **0.542** (≈ tie B17 **0.542**); PD **0.514** / HC **0.570**. **Longer LoRA lever closed.** Logged in [training_progress.md](training_progress.md).
-19. [ ] **B19 — `flan-paper-report-template` + LoRA r=32 on B17**, 3 ep — prepare → train → `eval_decode` + `analyze_pd_decode`; log in [training_progress.md](training_progress.md).
-20. [ ] **After B19:** further PD levers (PD oversampling, constrained decoding) if template prompt does not lift PD / category coverage.
+19. [x] **B19 — `flan-paper-report-template` + LoRA r=32 on B17**, 3 ep — AVG **0.540** (below B17 **0.542**); `pd_analysis` category coverage **0.143** (≈ unchanged); **template prompt lever closed.** Logged in [training_progress.md](training_progress.md).
+20. [ ] **Next:** PD levers beyond prefix text — PD oversampling, constrained decoding, or target-side template training (see B14 `pd_analysis.json`).
 
 ---
 
@@ -764,4 +764,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-15. **B17** remains best reporting config (AVG **0.542**). **B18 closed** (≈ tie). **B19 queued** — `flan-paper-report-template` prompt + LoRA on B17. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-15. **B17** remains best reporting config (AVG **0.542**). **B19 closed** — output-template prefix did not lift decode AVG or 7-slot coverage. Next: PD oversampling / constrained decoding. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*

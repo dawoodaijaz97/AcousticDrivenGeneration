@@ -109,7 +109,7 @@ Suggested experiment IDs (log in [training_progress.md](training_progress.md)):
 - **B14** — LoRA on B11 checkpoint, rank 16, 3 epochs, same LR/wd as B11  
 - **B15** — freeze encoder on B11 checkpoint, 3–5 epochs, same LR/wd as B11  
 - **B18** — LoRA rank 32 on **B17** `final_model`, **5 epochs** — AVG **0.542** (≈ tie B17); **closed**
-- **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17, 3 ep (`scripts/hpc/prepare_flan_t5_base_b19_report_template.sh`)
+- **B19** — `flan-paper-report-template` + LoRA r=32 on B17, 3 ep — AVG **0.540** (below B17); category coverage **≈14%** unchanged; **closed**
 
 **LoRA example (B14-style):**
 

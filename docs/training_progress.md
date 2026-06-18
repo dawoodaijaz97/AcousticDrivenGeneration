@@ -52,10 +52,11 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B14 | flan-t5-base | 100k | 5e-4 | 1.166 | 0.604 | 0.383 | 0.528 | 0.360 | 0.823 | **0.540** |
 | **B17** | flan-t5-base | 100k | 5e-4 | 1.145 | 0.604 | 0.389 | 0.531 | 0.362 | 0.823 | **0.542** |
 | B18 | flan-t5-base | 100k | 5e-4 | 1.145 | 0.605 | 0.390 | 0.530 | 0.362 | 0.823 | **0.542** |
+| B19 | flan-t5-base | 100k | 5e-4 | 1.156 | 0.600 | 0.386 | 0.530 | 0.361 | 0.822 | **0.540** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B17** = B11 checkpoint + **LoRA rank 32**, 3 ep — **best reporting config** (AVG **0.542**). **B18** = LoRA r=32 on B17, **5 ep** — **≈ tie** B17 (AVG **0.542**); **longer LoRA lever closed**. **B16** r=8 ties B11 (0.538); **B14** r=16 = 0.540. LoRA rank sweep **closed**. **B15** freeze encoder — below B11; lever closed.
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B17** = B11 checkpoint + **LoRA rank 32**, 3 ep — **best reporting config** (AVG **0.542**). **B18** ≈ tie B17; **longer LoRA closed**. **B19** = `flan-paper-report-template` + LoRA on B17 — **below B17** (AVG **0.540**); **template prompt closed** (7-slot coverage ≈ unchanged).
 
-**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005,100k-flan-paper-5ep-lora8,100k-flan-paper-5ep-lora16,100k-flan-paper-5ep-lora32,100k-flan-paper-5ep-lora32-5ep,100k-flan-paper-5ep-freeze-enc}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
+**Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005,100k-flan-paper-5ep-lora8,100k-flan-paper-5ep-lora16,100k-flan-paper-5ep-lora32,100k-flan-paper-5ep-lora32-5ep,100k-flan-paper-report-template-lora32,100k-flan-paper-5ep-freeze-enc}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
 
 **B5** prompt: `flan-paper` (`Generate a report for:`) — see `data/processed/flan-t5-base/100k-flan-paper/prepare_config.json`.
 
@@ -92,6 +93,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | B14 | 0.512 | 0.568 | 0.383 |
 | **B17** | 0.513 | 0.571 | 0.383 |
 | B18 | 0.514 | 0.570 | 0.384 |
+| B19 | 0.509 | 0.572 | 0.388 |
 
 ---
 
@@ -218,7 +220,15 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **B18** (LoRA **rank 32** on B17 `final_model`, **5 ep**, same LR/wd as B17) **≈ ties B17** on decode: AVG **0.542** vs **0.542** (+0.0002, within noise); R-1 **0.605** vs **0.604**, R-2 **0.390** vs **0.389**, R-L **0.530** vs **0.531**, BLEU **0.362** (tie), BERT **0.823** (tie).
 - **`test_loss` 1.145** — identical to B17 **1.145** (epoch 5.0).
 - **By group:** **PD AVG 0.514** vs B17 **0.513** (+0.001); **HC AVG 0.570** vs **0.571** (−0.001); HC BLEU **0.384** vs **0.383** (+0.001). Tiny PD lift, tiny HC regression — no clear win.
-- **Takeaway:** **Longer LoRA fine-tune lever closed** — 2 extra epochs on the B17 checkpoint buy nothing meaningful. **Keep B17** as reporting config (same AVG with less compute). Next lever: **PD-focused prompt / data / template** (7-slot structure).
+- **Takeaway:** **Longer LoRA fine-tune lever closed** — 2 extra epochs on the B17 checkpoint buy nothing meaningful. **Keep B17** as reporting config (same AVG with less compute). Next lever: beyond prefix text (oversampling, constrained decoding).
+
+### Phase 2 — output template prompt (B19) — closed (2026-06-15)
+
+- **B19** (`flan-paper-report-template` prefix + LoRA r=32 on B17, 3 ep) **below B17 on decode:** AVG **0.540** vs **0.542** (−0.002); R-1 **0.600** vs **0.604**, R-2 **0.386** vs **0.389**, BLEU **0.361** vs **0.362**.
+- **`test_loss` 1.156** vs B17 **1.145**.
+- **By group:** **PD AVG 0.509** vs B17 **0.513** (−0.004); **HC AVG 0.572** vs **0.571** (+0.001); HC BLEU **0.388** vs **0.383** (+0.005). Slight HC lift, PD regression — same HC-heavy pattern as B11 epochs.
+- **PD structure (`pd_analysis.json`):** `mean_coverage_hyp` **0.143** (≈ B14/B17 **~0.14**); refs **1.0**. **Breathing** hyp presence **99%**; **Lips–Intelligibility** still **0–1%**. PD severity match **0.479** (≈ unchanged). **Output-template prefix did not fix 7-slot structure.**
+- **Takeaway:** **Template prompt lever closed** — instructing `Category (Severity):` format in the encoder prefix is not enough. **Keep B17** for reporting. Next: **PD oversampling**, **constrained decoding**, or training-time structure losses (not more prefix variants like B6/B7/B19).
 
 ### Phase 4 — LoRA on B11 (B14) — prior note
 
@@ -250,7 +260,7 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### Model size
 
-- **Best run to date:** **B17 — LoRA rank 32 on B11 checkpoint, 3 ep** (**AVG 0.542**); **B18** (5 ep on B17) ≈ tie. Previous best B14 (0.540), B11 (0.538 full fine-tune 5 ep).
+- **Best run to date:** **B17 — LoRA rank 32 on B11 checkpoint, 3 ep** (**AVG 0.542**); **B18** ≈ tie; **B19** below B17 (**0.540**). Template prompt **closed**.
 - **Best full fine-tune:** **B11** (0.538).
 - **Best small @ 100k:** **S4** (**AVG 0.437**).
 - **Large:** L0/L4 (3 ep) ~0.500 → **L5 (5 ep) 0.536**, still only ties base — large is not worth its cost here.
@@ -258,7 +268,7 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (LoRA r=32, **AVG 0.542**). **B18 closed** (≈ tie). **Next:** **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17 (`scripts/hpc/prepare_flan_t5_base_b19_report_template.sh` → train → eval + `pd_analysis`).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (AVG **0.542**). **B19 closed** — template prompt did not lift AVG or 7-slot coverage. **Next:** PD oversampling or constrained decoding.
 
 ### `test_loss` vs generation metrics
 
@@ -283,4 +293,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-15 (**B18** LoRA r=32, 5 ep on B17 ≈ tie **AVG 0.542**; longer LoRA closed. **B17** remains best reporting config). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-15 (**B19** template prompt AVG **0.540**, 7-slot coverage **0.143** unchanged — lever closed. **B17** remains best). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
