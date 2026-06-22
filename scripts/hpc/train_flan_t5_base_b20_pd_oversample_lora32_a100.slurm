@@ -24,7 +24,7 @@ python -m main.train \
   --output-dir runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x \
   --model-name runs/flan-t5-base/100k-flan-paper-5ep-lora32/final_model \
   --lora-rank 32 \
-  --oversample-group PD \
+  --oversample-severity-min Moderate \
   --oversample-factor 2 \
   --num-train-epochs 3 \
   --per-device-train-batch-size 4 \

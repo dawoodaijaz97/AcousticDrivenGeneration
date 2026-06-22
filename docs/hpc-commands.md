@@ -98,6 +98,8 @@ cd $WORK/AcousticDrivenGeneration
 
 Only **training** uses Slurm in this repo; **prepare** and **eval_decode** run on the login node or an interactive GPU session.
 
+**Wall time:** TinyGPU `#SBATCH --time=` is capped at **`24:00:00`** per job. Use `24:00:00` for long training runs (LoRA, 5 ep, oversampled train). Eval jobs typically use `02:00:00`. If a run may exceed 24 h, split across checkpoints (`--resume-from-checkpoint auto`) or reduce epochs — do not request >24 h.
+
 ```bash
 cd $WORK/AcousticDrivenGeneration
 

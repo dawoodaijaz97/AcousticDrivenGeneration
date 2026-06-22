@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -16,8 +15,7 @@ from typing import Any
 
 from main.paths import resolve_under_repo
 from main.prompts import FEATURE_ORDER
-
-SEVERITIES: tuple[str, ...] = ("Normal", "Mild", "Moderate", "Severe")
+from main.report_severity import SEVERITIES, parse_severities
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -41,36 +39,6 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Write analysis summary JSON (default: alongside predictions as pd_analysis.json).",
     )
     return p.parse_args(argv)
-
-
-def _category_pattern(category: str) -> re.Pattern[str]:
-    return re.compile(
-        rf"\b{re.escape(category)}\s*\(\s*({'|'.join(SEVERITIES)})\s*\)\s*:",
-        re.IGNORECASE,
-    )
-
-
-_CATEGORY_PATTERNS: dict[str, re.Pattern[str]] = {
-    cat: _category_pattern(cat) for cat in FEATURE_ORDER
-}
-
-
-def parse_severities(text: str) -> dict[str, str | None]:
-    """Return severity label per mFDA category, or None if missing."""
-    out: dict[str, str | None] = {}
-    for cat in FEATURE_ORDER:
-        m = _CATEGORY_PATTERNS[cat].search(text)
-        if not m:
-            out[cat] = None
-            continue
-        label = m.group(1)
-        for sev in SEVERITIES:
-            if label.lower() == sev.lower():
-                out[cat] = sev
-                break
-        else:
-            out[cat] = label
-    return out
 
 
 def _mean(values: list[float]) -> float | None:

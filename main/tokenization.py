@@ -96,7 +96,14 @@ def tokenize_dataset_dict(
     max_source_length: int = 256,
     max_target_length: int = 512,
     padding: str = "max_length",
-    passthrough_columns: tuple[str, ...] = ("sample_id", "split", "is_real", "group", "example_hash"),
+    passthrough_columns: tuple[str, ...] = (
+        "sample_id",
+        "split",
+        "is_real",
+        "group",
+        "example_hash",
+        "target_text",
+    ),
 ) -> DatasetDict:
     """Tokenize every split; optional metadata columns are copied through."""
 

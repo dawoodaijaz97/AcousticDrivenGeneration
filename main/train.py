@@ -18,6 +18,7 @@ from transformers import (
 )
 
 from main.paths import repo_root, resolve_under_repo
+from main.report_severity import SEVERITIES, parse_severities, target_meets_severity_min
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -201,15 +202,28 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         default=None,
         choices=("PD", "HC"),
-        help="Duplicate train rows from this group before training (requires 'group' column in tokenized data).",
+        help=(
+            "Duplicate train rows from this group before training (requires labeled 'group' column; "
+            "only on real test — simulated train/val have group=None). Prefer --oversample-severity-min for B20."
+        ),
+    )
+    p.add_argument(
+        "--oversample-severity-min",
+        type=str,
+        default=None,
+        choices=SEVERITIES,
+        help=(
+            "Duplicate train rows whose target_text has any category at or above this severity "
+            "(Moderate/Severe proxy for PD-like synthetic reports when group labels are absent)."
+        ),
     )
     p.add_argument(
         "--oversample-factor",
         type=float,
         default=2.0,
         help=(
-            "Target multiplier for --oversample-group row count (default 2.0 = one extra copy of each "
-            "group row). Must be > 1.0. Fractional part adds a random subset of that size (seeded)."
+            "Target multiplier for oversampled rows (default 2.0 = one extra copy). Must be > 1.0. "
+            "Used with --oversample-group or --oversample-severity-min."
         ),
     )
     return p.parse_args(argv)
@@ -227,6 +241,29 @@ def _count_group(ds: Dataset, label: str) -> int:
     return sum(1 for g in ds["group"] if g == label)
 
 
+def _oversample_indices(ds: Dataset, row_idx: list[int], factor: float, *, seed: int) -> Dataset:
+    if not row_idx:
+        return ds
+    before = len(row_idx)
+    full_extra = max(0, int(factor) - 1)
+    frac = factor - int(factor)
+    parts: list[Dataset] = [ds]
+    for _ in range(full_extra):
+        parts.append(ds.select(row_idx))
+    extra_n = int(round(before * frac)) if frac > 0 else 0
+    if extra_n > 0:
+        import random
+
+        rng = random.Random(seed)
+        if extra_n >= before:
+            sampled = list(row_idx) * (extra_n // before)
+            sampled.extend(rng.sample(row_idx, k=extra_n % before))
+        else:
+            sampled = rng.sample(row_idx, k=extra_n)
+        parts.append(ds.select(sampled))
+    return concatenate_datasets(parts)
+
+
 def _oversample_group(ds: Dataset, group: str, factor: float, *, seed: int) -> Dataset:
     if factor <= 1.0:
         return ds
@@ -236,31 +273,87 @@ def _oversample_group(ds: Dataset, group: str, factor: float, *, seed: int) -> D
         )
     group_idx = [i for i, g in enumerate(ds["group"]) if g == group]
     if not group_idx:
-        raise SystemExit(f"No train rows with group={group!r} for --oversample-group.")
+        raise SystemExit(
+            f"No train rows with group={group!r} for --oversample-group. "
+            "Simulated train/val splits have group=None (PD/HC labels exist only on real test). "
+            "Use --oversample-severity-min Moderate for B20 instead."
+        )
 
-    before = len(group_idx)
-    full_extra = max(0, int(factor) - 1)
-    frac = factor - int(factor)
-    parts: list[Dataset] = [ds]
-    for _ in range(full_extra):
-        parts.append(ds.select(group_idx))
-    extra_n = int(round(before * frac)) if frac > 0 else 0
-    if extra_n > 0:
-        import random
-
-        rng = random.Random(seed)
-        if extra_n >= before:
-            sampled = list(group_idx) * (extra_n // before)
-            sampled.extend(rng.sample(group_idx, k=extra_n % before))
-        else:
-            sampled = rng.sample(group_idx, k=extra_n)
-        parts.append(ds.select(sampled))
-
-    out = concatenate_datasets(parts)
-    after = _count_group(out, group)
+    out = _oversample_indices(ds, group_idx, factor, seed=seed)
     _log(
         f"oversample_group  = {group} factor={factor} "
-        f"({before:,} -> {after:,} rows; train {len(ds):,} -> {len(out):,})"
+        f"({len(group_idx):,} -> {_count_group(out, group):,} rows; train {len(ds):,} -> {len(out):,})"
+    )
+    return out
+
+
+def _load_target_text_by_hash(tokenized_dir: Path) -> dict[str, str]:
+    """Load train target_text keyed by example_hash from prepare output (parent of tokenized/)."""
+    parent = tokenized_dir.parent
+    parquet_path = parent / "train.parquet"
+    jsonl_path = parent / "train.jsonl"
+    if parquet_path.is_file():
+        import pandas as pd
+
+        df = pd.read_parquet(parquet_path)
+    elif jsonl_path.is_file():
+        import json
+
+        rows = [json.loads(line) for line in jsonl_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        import pandas as pd
+
+        df = pd.DataFrame(rows)
+    else:
+        raise SystemExit(
+            f"Cannot resolve target_text for oversampling: expected {parquet_path} or {jsonl_path} "
+            "(re-run prepare, or use tokenized data with target_text passthrough)."
+        )
+    for col in ("example_hash", "target_text"):
+        if col not in df.columns:
+            raise SystemExit(f"Prepare train split missing {col!r} (needed for --oversample-severity-min).")
+    return dict(zip(df["example_hash"].astype(str), df["target_text"].astype(str), strict=True))
+
+
+def _oversample_severity_min(
+    ds: Dataset,
+    min_label: str,
+    factor: float,
+    *,
+    seed: int,
+    target_text_by_hash: dict[str, str] | None = None,
+) -> Dataset:
+    if factor <= 1.0:
+        return ds
+    if "target_text" in ds.column_names:
+        texts = [str(t) for t in ds["target_text"]]
+    elif target_text_by_hash is not None:
+        if "example_hash" not in ds.column_names:
+            raise SystemExit(
+                "--oversample-severity-min requires 'target_text' or 'example_hash' in the train split."
+            )
+        texts = [target_text_by_hash.get(str(h), "") for h in ds["example_hash"]]
+    else:
+        raise SystemExit(
+            f"--oversample-severity-min {min_label} requires 'target_text' in the tokenized train split "
+            "or prepare train.parquet/jsonl alongside tokenized/."
+        )
+    row_idx = [i for i, text in enumerate(texts) if target_meets_severity_min(text, min_label)]
+    if not row_idx:
+        raise SystemExit(
+            f"No train rows match --oversample-severity-min {min_label!r} "
+            "(no parseable Category (Severity): slots in target_text)."
+        )
+
+    out = _oversample_indices(ds, row_idx, factor, seed=seed)
+    out_texts = texts
+    if "target_text" in out.column_names:
+        out_texts = [str(t) for t in out["target_text"]]
+    elif target_text_by_hash is not None:
+        out_texts = [target_text_by_hash.get(str(h), "") for h in out["example_hash"]]
+    after = sum(1 for text in out_texts if target_meets_severity_min(text, min_label))
+    _log(
+        f"oversample_severity = >={min_label} factor={factor} "
+        f"({len(row_idx):,} -> {after:,} rows; train {len(ds):,} -> {len(out):,})"
     )
     return out
 
@@ -415,15 +508,30 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("DatasetDict must contain 'train' and 'val' splits.")
 
     train_ds = _maybe_subset(raw["train"], args.max_train_samples)
-    if args.oversample_group:
+    if args.oversample_group and args.oversample_severity_min:
+        raise SystemExit("Choose at most one of --oversample-group and --oversample-severity-min.")
+    if args.oversample_group or args.oversample_severity_min:
         if args.oversample_factor <= 1.0:
-            raise SystemExit("--oversample-factor must be > 1.0 when --oversample-group is set.")
-        train_ds = _oversample_group(
-            train_ds,
-            args.oversample_group,
-            args.oversample_factor,
-            seed=args.seed,
-        )
+            raise SystemExit("--oversample-factor must be > 1.0 when oversampling is enabled.")
+        if args.oversample_group:
+            train_ds = _oversample_group(
+                train_ds,
+                args.oversample_group,
+                args.oversample_factor,
+                seed=args.seed,
+            )
+        else:
+            target_map: dict[str, str] | None = None
+            if "target_text" not in train_ds.column_names:
+                target_map = _load_target_text_by_hash(tokenized)
+                _log(f"oversample targets = loaded target_text from {tokenized.parent / 'train.parquet'}")
+            train_ds = _oversample_severity_min(
+                train_ds,
+                args.oversample_severity_min,
+                args.oversample_factor,
+                seed=args.seed,
+                target_text_by_hash=target_map,
+            )
     eval_ds = _maybe_subset(raw["val"], args.max_eval_samples)
     test_ds: Dataset | None = None
     if "test" in raw:
@@ -584,7 +692,10 @@ def main(argv: list[str] | None = None) -> int:
             "lora_dropout": args.lora_dropout if args.lora_rank > 0 else None,
             "freeze_encoder": args.freeze_encoder,
             "oversample_group": args.oversample_group,
-            "oversample_factor": args.oversample_factor if args.oversample_group else None,
+            "oversample_severity_min": args.oversample_severity_min,
+            "oversample_factor": args.oversample_factor
+            if (args.oversample_group or args.oversample_severity_min)
+            else None,
         }
         report_path = out / "test_eval.json"
         report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")

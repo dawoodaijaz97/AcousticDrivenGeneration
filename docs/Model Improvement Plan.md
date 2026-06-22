@@ -67,7 +67,7 @@
 - [x] **B15** — freeze encoder on B11 `final_model`, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**
 - [x] PD-targeted analysis on **B14** — structural slot check (`pd_analysis.json`); see [training_progress.md](training_progress.md)
 - [x] **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17, 3 ep — AVG **0.540** (below B17 **0.542**); category coverage **≈14%** unchanged; **template prompt closed**
-- [ ] **B20** — **PD 2× oversample** + LoRA r=32 on B17, 3 ep (same `flan-paper` data; no re-prepare)
+- [ ] **B20** — **Moderate+ severity 2× oversample** + LoRA r=32 on B17, 3 ep (PD proxy; simulated train has `group=None`)
 
 ### Model size — Flan-T5-large
 
@@ -233,7 +233,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B17** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32` | LoRA **r=32** on B11 `final_model`, 3 ep; AVG **0.542** (**new best**); PD **0.513** / HC **0.571**; LoRA rank sweep closed |
 | **B18** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-5ep` | LoRA **r=32** on B17 `final_model`, **5 ep**; AVG **0.542** (≈ tie B17); PD **0.514** / HC **0.570**; **longer LoRA closed** |
 | **B19** | flan-t5-base | 100k | flan-paper-report-template | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-report-template-lora32` | LoRA **r=32** on B17, 3 ep; AVG **0.540** (vs B17 **0.542**); PD **0.509** / HC **0.572**; `pd_analysis` coverage **0.143** (≈ B17); **template prompt closed** |
-| **B20** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x` | LoRA **r=32** on B17, 3 ep; **`--oversample-group PD --oversample-factor 2`**; PD structure lever |
+| **B20** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x` | LoRA **r=32** on B17, 3 ep; **`--oversample-severity-min Moderate --oversample-factor 2`** (PD proxy — train has no PD/HC labels) |
 | **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
 
 ---

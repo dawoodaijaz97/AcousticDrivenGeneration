@@ -240,8 +240,9 @@ Intermediate checkpoints live directly under **`--output-dir`** (subject to **`-
 | `--lora-alpha` | *(2 × rank)* | LoRA scaling alpha. |
 | `--lora-dropout` | `0.05` | LoRA dropout. |
 | `--freeze-encoder` | off | Train decoder only; mutually exclusive with `--lora-rank` > 0. |
-| `--oversample-group` | *(none)* | Duplicate train rows from **`PD`** or **`HC`** before training (requires `group` column). |
-| `--oversample-factor` | `2.0` | Target multiplier for oversampled group count (must be **> 1.0**). |
+| `--oversample-group` | *(none)* | Duplicate train rows from **`PD`** or **`HC`** (only labeled on real test; simulated train has `group=None`). |
+| `--oversample-severity-min` | *(none)* | Duplicate rows whose `target_text` has any category **≥** this severity (**B20:** `Moderate`). |
+| `--oversample-factor` | `2.0` | Target multiplier for oversampled rows (must be **> 1.0**). |
 
 ## Example commands
 
