@@ -396,8 +396,8 @@ python -m main.structured_decode \
 ```bash
 python -m main.audit_report_distribution \
   --train data/Data_splits/100k_samples_balanced/train_split.csv \
-  --val data/Data_splits/100k_samples_balanced/val_split.csv \
-  --test data/Data_splits/100k_samples_balanced/test_split.csv \
+  --val data/Data_splits/val_split.csv \
+  --test data/Data_splits/test_split.csv \
   --output-json analysis/synthetic_real_report_audit.json \
   --output-md analysis/synthetic_real_report_audit.md
 ```

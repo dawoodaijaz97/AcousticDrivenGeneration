@@ -1,0 +1,564 @@
+{
+  "train_csv": "data/Data_splits/100k_samples_balanced/train_split.csv",
+  "val_csv": "data/Data_splits/val_split.csv",
+  "test_csv": "data/Data_splits/test_split.csv",
+  "train": {
+    "n": 99893,
+    "is_real": false,
+    "group_counts": {
+      "None": 99893
+    },
+    "target_len_chars": {
+      "min": 375,
+      "p50": 494,
+      "max": 659,
+      "mean": 501.5
+    },
+    "structure_metrics": {
+      "n": 99893,
+      "category_coverage": 1.0,
+      "severity_word_coverage": 1.0,
+      "all_7_slots_rate": 1.0
+    },
+    "mean_category_coverage": 1.0,
+    "all_7_slots_rate": 1.0,
+    "category_presence_rate": {
+      "Breathing": 1.0,
+      "Lips": 1.0,
+      "Palate": 1.0,
+      "Larynx": 1.0,
+      "Monotonicity": 1.0,
+      "Tongue": 1.0,
+      "Intelligibility": 1.0
+    },
+    "severity_distribution": {
+      "Breathing": {
+        "Normal": 0.313,
+        "Mild": 0.1022,
+        "Moderate": 0.2574,
+        "Severe": 0.3274
+      },
+      "Lips": {
+        "Normal": 0.2016,
+        "Mild": 0.1359,
+        "Moderate": 0.2824,
+        "Severe": 0.3801
+      },
+      "Palate": {
+        "Normal": 0.2056,
+        "Mild": 0.1058,
+        "Moderate": 0.2905,
+        "Severe": 0.398
+      },
+      "Larynx": {
+        "Normal": 0.2879,
+        "Mild": 0.1131,
+        "Moderate": 0.443,
+        "Severe": 0.156
+      },
+      "Monotonicity": {
+        "Normal": 0.2502,
+        "Mild": 0.1073,
+        "Moderate": 0.319,
+        "Severe": 0.3235
+      },
+      "Tongue": {
+        "Normal": 0.3598,
+        "Mild": 0.0811,
+        "Moderate": 0.3218,
+        "Severe": 0.2373
+      },
+      "Intelligibility": {
+        "Normal": 0.2355,
+        "Mild": 0.117,
+        "Moderate": 0.3081,
+        "Severe": 0.3394
+      }
+    },
+    "duplicates": {
+      "n": 99893,
+      "unique_targets": 5063,
+      "duplicate_rate": 0.9493,
+      "max_duplicate_count": 13365,
+      "top_duplicates": [
+        {
+          "count": 13365,
+          "preview": "Breathing (Moderate): the subject requires taking breaks to complete the tasks most of the times. Lips (Moderate): the sounds produced with the lips are auditorily weak. Palate (Moderate): Some impairment is noticeable. But speech productio\u2026"
+        },
+        {
+          "count": 5022,
+          "preview": "Breathing (Severe): control over respiration is grossly distorted. Lips (Severe): unable of maintaining good lip closure, resulting in poor production of sounds. Palate (Severe): speech quality is extremely deteriorated. Larynx (Moderate): \u2026"
+        },
+        {
+          "count": 3331,
+          "preview": "Breathing (Mild): occasionally breaks fluency . Lips (Moderate): the sounds produced with the lips are auditorily weak. Palate (Moderate): Some impairment is noticeable. But speech production happens with a reasonable approximation. Larynx \u2026"
+        },
+        {
+          "count": 2953,
+          "preview": "Breathing (Normal): normal breathing control. Lips (Normal): normal coordination of lips. Palate (Normal): normal production of velar sounds. Larynx (Normal): can maintain a normal phonation and produce clear speech. Monotonicity (Normal): \u2026"
+        },
+        {
+          "count": 2266,
+          "preview": "Breathing (Severe): control over respiration is grossly distorted. Lips (Severe): unable of maintaining good lip closure, resulting in poor production of sounds. Palate (Severe): speech quality is extremely deteriorated. Larynx (Moderate): \u2026"
+        }
+      ]
+    }
+  },
+  "val": {
+    "n": 10000,
+    "is_real": false,
+    "group_counts": {
+      "None": 10000
+    },
+    "target_len_chars": {
+      "min": 384,
+      "p50": 494,
+      "max": 646,
+      "mean": 501.9
+    },
+    "structure_metrics": {
+      "n": 10000,
+      "category_coverage": 1.0,
+      "severity_word_coverage": 1.0,
+      "all_7_slots_rate": 1.0
+    },
+    "mean_category_coverage": 1.0,
+    "all_7_slots_rate": 1.0,
+    "category_presence_rate": {
+      "Breathing": 1.0,
+      "Lips": 1.0,
+      "Palate": 1.0,
+      "Larynx": 1.0,
+      "Monotonicity": 1.0,
+      "Tongue": 1.0,
+      "Intelligibility": 1.0
+    },
+    "severity_distribution": {
+      "Breathing": {
+        "Normal": 0.3105,
+        "Mild": 0.0984,
+        "Moderate": 0.2629,
+        "Severe": 0.3282
+      },
+      "Lips": {
+        "Normal": 0.2039,
+        "Mild": 0.1376,
+        "Moderate": 0.279,
+        "Severe": 0.3795
+      },
+      "Palate": {
+        "Normal": 0.2085,
+        "Mild": 0.1019,
+        "Moderate": 0.2947,
+        "Severe": 0.3949
+      },
+      "Larynx": {
+        "Normal": 0.283,
+        "Mild": 0.115,
+        "Moderate": 0.443,
+        "Severe": 0.159
+      },
+      "Monotonicity": {
+        "Normal": 0.2489,
+        "Mild": 0.107,
+        "Moderate": 0.3176,
+        "Severe": 0.3265
+      },
+      "Tongue": {
+        "Normal": 0.3594,
+        "Mild": 0.0823,
+        "Moderate": 0.3235,
+        "Severe": 0.2348
+      },
+      "Intelligibility": {
+        "Normal": 0.24,
+        "Mild": 0.1146,
+        "Moderate": 0.3073,
+        "Severe": 0.3381
+      }
+    },
+    "duplicates": {
+      "n": 10000,
+      "unique_targets": 1553,
+      "duplicate_rate": 0.8447,
+      "max_duplicate_count": 1369,
+      "top_duplicates": [
+        {
+          "count": 1369,
+          "preview": "Breathing (Moderate): the subject requires taking breaks to complete the tasks most of the times. Lips (Moderate): the sounds produced with the lips are auditorily weak. Palate (Moderate): Some impairment is noticeable. But speech productio\u2026"
+        },
+        {
+          "count": 469,
+          "preview": "Breathing (Severe): control over respiration is grossly distorted. Lips (Severe): unable of maintaining good lip closure, resulting in poor production of sounds. Palate (Severe): speech quality is extremely deteriorated. Larynx (Moderate): \u2026"
+        },
+        {
+          "count": 311,
+          "preview": "Breathing (Normal): normal breathing control. Lips (Normal): normal coordination of lips. Palate (Normal): normal production of velar sounds. Larynx (Normal): can maintain a normal phonation and produce clear speech. Monotonicity (Normal): \u2026"
+        },
+        {
+          "count": 300,
+          "preview": "Breathing (Mild): occasionally breaks fluency . Lips (Moderate): the sounds produced with the lips are auditorily weak. Palate (Moderate): Some impairment is noticeable. But speech production happens with a reasonable approximation. Larynx \u2026"
+        },
+        {
+          "count": 235,
+          "preview": "Breathing (Severe): control over respiration is grossly distorted. Lips (Severe): unable of maintaining good lip closure, resulting in poor production of sounds. Palate (Severe): speech quality is extremely deteriorated. Larynx (Moderate): \u2026"
+        }
+      ]
+    }
+  },
+  "test": {
+    "n": 96,
+    "is_real": true,
+    "group_counts": {
+      "PD": 48,
+      "HC": 48
+    },
+    "target_len_chars": {
+      "min": 396,
+      "p50": 438,
+      "max": 570,
+      "mean": 449.1
+    },
+    "structure_metrics": {
+      "n": 96,
+      "category_coverage": 1.0,
+      "severity_word_coverage": 1.0,
+      "all_7_slots_rate": 1.0,
+      "by_group": {
+        "PD": {
+          "n": 48,
+          "category_coverage": 1.0,
+          "severity_word_coverage": 1.0,
+          "all_7_slots_rate": 1.0
+        },
+        "HC": {
+          "n": 48,
+          "category_coverage": 1.0,
+          "severity_word_coverage": 1.0,
+          "all_7_slots_rate": 1.0
+        }
+      }
+    },
+    "mean_category_coverage": 1.0,
+    "all_7_slots_rate": 1.0,
+    "category_presence_rate": {
+      "Breathing": 1.0,
+      "Lips": 1.0,
+      "Palate": 1.0,
+      "Larynx": 1.0,
+      "Monotonicity": 1.0,
+      "Tongue": 1.0,
+      "Intelligibility": 1.0
+    },
+    "severity_distribution": {
+      "Breathing": {
+        "Normal": 0.3333,
+        "Mild": 0.25,
+        "Moderate": 0.1458,
+        "Severe": 0.2708
+      },
+      "Lips": {
+        "Normal": 0.4167,
+        "Mild": 0.4062,
+        "Moderate": 0.1042,
+        "Severe": 0.0729
+      },
+      "Palate": {
+        "Normal": 0.3229,
+        "Mild": 0.2292,
+        "Moderate": 0.1771,
+        "Severe": 0.2708
+      },
+      "Larynx": {
+        "Normal": 0.3646,
+        "Mild": 0.3125,
+        "Moderate": 0.2188,
+        "Severe": 0.1042
+      },
+      "Monotonicity": {
+        "Normal": 0.6771,
+        "Mild": 0.3125,
+        "Moderate": 0.0104,
+        "Severe": 0.0
+      },
+      "Tongue": {
+        "Normal": 0.2917,
+        "Mild": 0.1667,
+        "Moderate": 0.2083,
+        "Severe": 0.3333
+      },
+      "Intelligibility": {
+        "Normal": 0.875,
+        "Mild": 0.125,
+        "Moderate": 0.0,
+        "Severe": 0.0
+      }
+    },
+    "duplicates": {
+      "n": 96,
+      "unique_targets": 48,
+      "duplicate_rate": 0.5,
+      "max_duplicate_count": 26,
+      "top_duplicates": [
+        {
+          "count": 26,
+          "preview": "Breathing (Normal): normal breathing control. Lips (Normal): normal coordination of lips. Palate (Normal): normal production of velar sounds. Larynx (Normal): can maintain a normal phonation and produce clear speech. Monotonicity (Normal): \u2026"
+        },
+        {
+          "count": 5,
+          "preview": "Breathing (Severe): control over respiration is grossly distorted. Lips (Mild): Inconsistent lip closure, but overall good control. Palate (Severe): speech quality is extremely deteriorated. Larynx (Moderate): Problems to maintain a proper \u2026"
+        },
+        {
+          "count": 4,
+          "preview": "Breathing (Severe): control over respiration is grossly distorted. Lips (Severe): unable of maintaining good lip closure, resulting in poor production of sounds. Palate (Severe): speech quality is extremely deteriorated. Larynx (Severe): un\u2026"
+        },
+        {
+          "count": 4,
+          "preview": "Breathing (Mild): occasionally breaks fluency . Lips (Mild): Inconsistent lip closure, but overall good control. Palate (Mild): mild abnormality. It does not affect speech production. Larynx (Mild): minor difficulties without noticeable spe\u2026"
+        },
+        {
+          "count": 2,
+          "preview": "Breathing (Moderate): the subject requires taking breaks to complete the tasks most of the times. Lips (Mild): Inconsistent lip closure, but overall good control. Palate (Mild): mild abnormality. It does not affect speech production. Larynx\u2026"
+        }
+      ]
+    },
+    "by_group": {
+      "PD": {
+        "n": 48,
+        "mean_category_coverage": 1.0,
+        "category_presence_rate": {
+          "Breathing": 1.0,
+          "Lips": 1.0,
+          "Palate": 1.0,
+          "Larynx": 1.0,
+          "Monotonicity": 1.0,
+          "Tongue": 1.0,
+          "Intelligibility": 1.0
+        },
+        "severity_distribution": {
+          "Breathing": {
+            "Normal": 0.0,
+            "Mild": 0.2083,
+            "Moderate": 0.25,
+            "Severe": 0.5417
+          },
+          "Lips": {
+            "Normal": 0.0,
+            "Mild": 0.6667,
+            "Moderate": 0.1875,
+            "Severe": 0.1458
+          },
+          "Palate": {
+            "Normal": 0.0,
+            "Mild": 0.1667,
+            "Moderate": 0.3125,
+            "Severe": 0.5208
+          },
+          "Larynx": {
+            "Normal": 0.0,
+            "Mild": 0.375,
+            "Moderate": 0.4167,
+            "Severe": 0.2083
+          },
+          "Monotonicity": {
+            "Normal": 0.375,
+            "Mild": 0.6042,
+            "Moderate": 0.0208,
+            "Severe": 0.0
+          },
+          "Tongue": {
+            "Normal": 0.0,
+            "Mild": 0.1875,
+            "Moderate": 0.2292,
+            "Severe": 0.5833
+          },
+          "Intelligibility": {
+            "Normal": 0.7708,
+            "Mild": 0.2292,
+            "Moderate": 0.0,
+            "Severe": 0.0
+          }
+        },
+        "target_len_chars": {
+          "p50": 478,
+          "mean": 478.4
+        }
+      },
+      "HC": {
+        "n": 48,
+        "mean_category_coverage": 1.0,
+        "category_presence_rate": {
+          "Breathing": 1.0,
+          "Lips": 1.0,
+          "Palate": 1.0,
+          "Larynx": 1.0,
+          "Monotonicity": 1.0,
+          "Tongue": 1.0,
+          "Intelligibility": 1.0
+        },
+        "severity_distribution": {
+          "Breathing": {
+            "Normal": 0.6667,
+            "Mild": 0.2917,
+            "Moderate": 0.0417,
+            "Severe": 0.0
+          },
+          "Lips": {
+            "Normal": 0.8333,
+            "Mild": 0.1458,
+            "Moderate": 0.0208,
+            "Severe": 0.0
+          },
+          "Palate": {
+            "Normal": 0.6458,
+            "Mild": 0.2917,
+            "Moderate": 0.0417,
+            "Severe": 0.0208
+          },
+          "Larynx": {
+            "Normal": 0.7292,
+            "Mild": 0.25,
+            "Moderate": 0.0208,
+            "Severe": 0.0
+          },
+          "Monotonicity": {
+            "Normal": 0.9792,
+            "Mild": 0.0208,
+            "Moderate": 0.0,
+            "Severe": 0.0
+          },
+          "Tongue": {
+            "Normal": 0.5833,
+            "Mild": 0.1458,
+            "Moderate": 0.1875,
+            "Severe": 0.0833
+          },
+          "Intelligibility": {
+            "Normal": 0.9792,
+            "Mild": 0.0208,
+            "Moderate": 0.0,
+            "Severe": 0.0
+          }
+        },
+        "target_len_chars": {
+          "p50": 404,
+          "mean": 419.8
+        }
+      }
+    }
+  },
+  "synthetic_pooled": {
+    "n": 109893,
+    "is_real": false,
+    "group_counts": {
+      "None": 109893
+    },
+    "target_len_chars": {
+      "min": 375,
+      "p50": 494,
+      "max": 659,
+      "mean": 501.5
+    },
+    "structure_metrics": {
+      "n": 109893,
+      "category_coverage": 1.0,
+      "severity_word_coverage": 1.0,
+      "all_7_slots_rate": 1.0
+    },
+    "mean_category_coverage": 1.0,
+    "all_7_slots_rate": 1.0,
+    "category_presence_rate": {
+      "Breathing": 1.0,
+      "Lips": 1.0,
+      "Palate": 1.0,
+      "Larynx": 1.0,
+      "Monotonicity": 1.0,
+      "Tongue": 1.0,
+      "Intelligibility": 1.0
+    },
+    "severity_distribution": {
+      "Breathing": {
+        "Normal": 0.3128,
+        "Mild": 0.1019,
+        "Moderate": 0.2579,
+        "Severe": 0.3275
+      },
+      "Lips": {
+        "Normal": 0.2018,
+        "Mild": 0.1361,
+        "Moderate": 0.2821,
+        "Severe": 0.3801
+      },
+      "Palate": {
+        "Normal": 0.2059,
+        "Mild": 0.1055,
+        "Moderate": 0.2909,
+        "Severe": 0.3977
+      },
+      "Larynx": {
+        "Normal": 0.2875,
+        "Mild": 0.1132,
+        "Moderate": 0.443,
+        "Severe": 0.1563
+      },
+      "Monotonicity": {
+        "Normal": 0.2501,
+        "Mild": 0.1073,
+        "Moderate": 0.3188,
+        "Severe": 0.3238
+      },
+      "Tongue": {
+        "Normal": 0.3598,
+        "Mild": 0.0812,
+        "Moderate": 0.322,
+        "Severe": 0.237
+      },
+      "Intelligibility": {
+        "Normal": 0.2359,
+        "Mild": 0.1168,
+        "Moderate": 0.3081,
+        "Severe": 0.3393
+      }
+    },
+    "duplicates": {
+      "n": 109893,
+      "unique_targets": 5280,
+      "duplicate_rate": 0.952,
+      "max_duplicate_count": 14734,
+      "top_duplicates": [
+        {
+          "count": 14734,
+          "preview": "Breathing (Moderate): the subject requires taking breaks to complete the tasks most of the times. Lips (Moderate): the sounds produced with the lips are auditorily weak. Palate (Moderate): Some impairment is noticeable. But speech productio\u2026"
+        },
+        {
+          "count": 5491,
+          "preview": "Breathing (Severe): control over respiration is grossly distorted. Lips (Severe): unable of maintaining good lip closure, resulting in poor production of sounds. Palate (Severe): speech quality is extremely deteriorated. Larynx (Moderate): \u2026"
+        },
+        {
+          "count": 3631,
+          "preview": "Breathing (Mild): occasionally breaks fluency . Lips (Moderate): the sounds produced with the lips are auditorily weak. Palate (Moderate): Some impairment is noticeable. But speech production happens with a reasonable approximation. Larynx \u2026"
+        },
+        {
+          "count": 3264,
+          "preview": "Breathing (Normal): normal breathing control. Lips (Normal): normal coordination of lips. Palate (Normal): normal production of velar sounds. Larynx (Normal): can maintain a normal phonation and produce clear speech. Monotonicity (Normal): \u2026"
+        },
+        {
+          "count": 2501,
+          "preview": "Breathing (Severe): control over respiration is grossly distorted. Lips (Severe): unable of maintaining good lip closure, resulting in poor production of sounds. Palate (Severe): speech quality is extremely deteriorated. Larynx (Moderate): \u2026"
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "synthetic_mean_category_coverage": 1.0,
+    "real_mean_category_coverage": 1.0,
+    "coverage_delta_synthetic_minus_real": 0.0,
+    "breathing_presence_delta_synthetic_minus_real": 0.0,
+    "categories_below_90pct_in_synthetic": [],
+    "categories_well_in_real_but_weak_in_synthetic": [],
+    "synthetic_all_7_slots_rate": 1.0,
+    "real_all_7_slots_rate": 1.0,
+    "synthetic_duplicate_rate": 0.952,
+    "real_duplicate_rate": 0.5
+  }
+}
