@@ -27,8 +27,8 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 
 **Immediate priority order:**
 
-1. **B21:** B17 + forced seven-slot post-processing / constrained template output.
-2. **B22:** B17 + multi-candidate generation + structure-aware reranking.
+1. ~~**B21:** B17 + forced seven-slot post-processing~~ — **done; closed** (coverage **1.0**, AVG **0.492** vs B17 **0.542**; see [training_progress.md](training_progress.md)).
+2. ~~**B22:** B17 + multi-candidate generation + structure-aware reranking~~ — **done; closed** (coverage **0.144** unchanged, AVG **0.531** vs B17 **0.542**; see [training_progress.md](training_progress.md)).
 3. **D1:** synthetic-vs-real target/report distribution audit.
 4. **B23:** train a structured seven-label target format, then verbalize through a deterministic report template.
 
@@ -46,8 +46,8 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 - [x] Compare **checkpoints** vs `final_model` on **B5** (2026-05-29; use `final_model`, not val-loss step)
 - [ ] Optional: wandb / tensorboard (`--report-to`)
 - [x] Per-category keyword/slot checks on decoded text — **B14 PD analysis** (`main/analyze_pd_decode`, `pd_analysis.json`)
-- [ ] Add schema/slot coverage to standard eval outputs (`category_coverage`, `severity_word_coverage`, `all_7_slots_rate`)
-- [ ] Add structure-aware reranking utility for multi-candidate decode outputs
+- [x] Add schema/slot coverage to standard eval outputs (`category_coverage`, `severity_word_coverage`, `all_7_slots_rate`) — in `main.structured_decode` JSON (B21 logged)
+- [x] Add structure-aware reranking utility for multi-candidate decode outputs (`main.structured_decode --structure-rerank`; B22 eval **closed**)
 - [ ] Wire `compute_metrics` + `--predict-with-generate` in `main/train.py` (medium priority)
 
 ### Model size — Flan-T5-small (~77M)
@@ -83,8 +83,8 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 - [x] PD-targeted analysis on **B14** — structural slot check (`pd_analysis.json`); see [training_progress.md](training_progress.md)
 - [x] **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17, 3 ep — AVG **0.540** (below B17 **0.542**); category coverage **≈14%** unchanged; **template prompt closed**
 - [x] **B20** — **Moderate+ severity 2× oversample** + LoRA r=32 on B17, 3 ep — AVG **0.542** (≈ tie B17); PD **0.513**; coverage **0.143** unchanged; **oversampling closed**
-- [ ] **B21** — B17 + **forced seven-slot constrained/post-processed output**; no retraining; compare raw vs structured decode on real test
-- [ ] **B22** — B17 + **multi-candidate generation + structure-aware reranking**; no retraining; select candidate with strongest category/severity coverage
+- [x] **B21** — B17 + **forced seven-slot constrained/post-processed output**; no retraining; compare raw vs structured decode on real test — **closed:** coverage **1.0**, structured AVG **0.492** (raw **0.542** ≈ B17)
+- [x] **B22** — B17 + **multi-candidate generation + structure-aware reranking**; no retraining — **closed:** coverage **0.144** unchanged, AVG **0.531** (below B17 **0.542**)
 - [ ] **B23** — train **structured seven-label target** (`Breathing: Mild`, ..., `Intelligibility: Normal`) and generate final prose with deterministic template
 
 ### Model size — Flan-T5-large
@@ -160,30 +160,16 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 
 **Goal:** move from free-form report-like text to clinically valid seven-category mFDA output. A run should now be judged on both standard generation metrics and structure metrics.
 
-- [ ] **B21 — constrained seven-slot output, no retraining**
+- [x] **B21 — constrained seven-slot output, no retraining** — **closed (2026-06-24)**
   - Source model: `runs/flan-t5-base/100k-flan-paper-5ep-lora32/final_model` (**B17**)
   - Method: decode normally, then normalize into a mandatory seven-category skeleton
-  - Required skeleton:
+  - **Result:** `category_coverage` **0.144 → 1.0**, `all_7_slots_rate` **0 → 1.0**, but structured AVG **0.492** vs raw **0.542** (−**0.050**) — **promotion gate failed**; padded `Normal: Within normal limits.` slots hurt ROUGE/BLEU vs full reference prose
+  - Artifacts: `runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode/`
 
-    ```text
-    Breathing (Severity): ...
-    Lips (Severity): ...
-    Larynx (Severity): ...
-    Palate (Severity): ...
-    Monotonicity (Severity): ...
-    Tongue (Severity): ...
-    Intelligibility (Severity): ...
-    ```
-
-  - Track: standard AVG, PD/HC AVG, category coverage, severity-word coverage, `all_7_slots_rate`
-  - Promotion gate: category coverage should increase from **0.143** to at least **0.90** without a major AVG collapse
-
-- [ ] **B22 — structure-aware reranking, no retraining**
-  - Source model: **B17**
-  - Generate multiple candidates per test item (`num_beams` 5–8, `num_return_sequences` 3–5)
-  - Score candidates using normal decode score + structure bonus
-  - Structure bonus: reward presence of all seven category names and a valid severity word (`Normal`, `Mild`, `Moderate`, `Severe`) for each category
-  - Compare against B17 raw and B21 forced-template output
+- [x] **B22 — structure-aware reranking, no retraining** — **closed (2026-06-24)**
+  - Source model: **B17**; beams **8**, **5** return sequences per item
+  - **Result:** **`category_coverage` 0.144** / **`all_7_slots_rate` 0.0** (≈ B17); AVG **0.531** vs B17 **0.542** (−**0.011**) — candidates never contain fuller 7-slot structure; rerank cannot help
+  - Artifacts: `runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank/`
 
 - [ ] **D1 — synthetic-vs-real report distribution audit**
   - Compare train/val synthetic targets vs real test references
@@ -206,7 +192,7 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
   - Train/evaluate as structured prediction first; then verbalize using deterministic clinical report templates
   - Track both label accuracy/F1 per category and final text metrics after verbalization
 
-**Do not resume broad training sweeps until B21/B22/D1 clarify whether structure forcing fixes the current plateau.**
+**Do not resume broad training sweeps until D1/B23 clarify the structural failure mode** (B21 post-process and B22 rerank **closed** at decode time).
 
 ---
 
@@ -242,8 +228,8 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 | Category hints in prefix (B6 completed; below B5) | [x] |
 | Numeric formatting / category labels (B7 completed; below B5) | [x] |
 | Seven-slot output template in prefix (B19) | [x] (below B17; coverage unchanged) |
-| Forced seven-slot output after decode (B21) | [ ] |
-| Multi-candidate structure-aware reranking (B22) | [ ] |
+| Forced seven-slot output after decode (B21) | [x] (closed: coverage 1.0, AVG 0.492) |
+| Multi-candidate structure-aware reranking (B22) | [x] (closed: coverage 0.144, AVG 0.531) |
 | Structured seven-label target format (B23) | [ ] |
 | `max_source_length` / `max_target_length` audit | [x] (B5 data; 256/512 OK) |
 
@@ -276,8 +262,8 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 | Beam size sweep | [x] (B5: beam 3 best; see training_progress) |
 | `max_new_tokens` ~512 | [x] |
 | `no_repeat_ngram` 2 | [x] (paper-aligned in eval) |
-| Constrained seven-slot template output | [ ] B21 |
-| Structure-aware candidate reranking | [ ] B22 |
+| Constrained seven-slot template output | [x] B21 (closed) |
+| Structure-aware candidate reranking | [x] B22 (closed) |
 
 ---
 
@@ -315,8 +301,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B19** | flan-t5-base | 100k | flan-paper-report-template | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-report-template-lora32` | LoRA **r=32** on B17, 3 ep; AVG **0.540** (vs B17 **0.542**); PD **0.509** / HC **0.572**; `pd_analysis` coverage **0.143** (≈ B17); **template prompt closed** |
 | **B20** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x` | LoRA **r=32** on B17, 3 ep; **`--oversample-severity-min Moderate --oversample-factor 2`**; AVG **0.542** (≈ B17); PD **0.513**; coverage **0.143** unchanged; **closed** |
 | **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
-| **B21** | flan-t5-base | 100k | flan-paper | n/a | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode` | **No retraining.** B17 + forced seven-slot constrained/post-processed output; priority metric = category coverage / `all_7_slots_rate` |
-| **B22** | flan-t5-base | 100k | flan-paper | n/a | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank` | **No retraining.** B17 + multi-candidate decode + structure-aware reranking |
+| **B21** | flan-t5-base | 100k | flan-paper | n/a | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode` | **No retraining.** B17 + forced seven-slot post-process — coverage **1.0**, structured AVG **0.492** (raw **0.542**); **closed** |
+| **B22** | flan-t5-base | 100k | flan-paper | n/a | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank` | **No retraining.** B17 + structure rerank — coverage **0.144** unchanged, AVG **0.531**; **closed** |
 | **D1** | data audit | train/val/test | n/a | n/a | [ ] | `analysis/synthetic_real_report_audit.json` | Synthetic-vs-real report/target distribution audit before more training |
 | **B23** | flan-t5-base | 100k | structured-seven-label | 5e-4 | [ ] | `runs/flan-t5-base/100k-structured-seven-label` | Train structured category/severity labels first; deterministic template verbalization after |
 
@@ -355,17 +341,17 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 18. [x] **B18 — LoRA rank 32 on B17 `final_model`, 5 ep** — AVG **0.542** (≈ tie B17 **0.542**); PD **0.514** / HC **0.570**. **Longer LoRA lever closed.** Logged in [training_progress.md](training_progress.md).
 19. [x] **B19 — `flan-paper-report-template` + LoRA r=32 on B17**, 3 ep — AVG **0.540** (below B17 **0.542**); `pd_analysis` category coverage **0.143** (≈ unchanged); **template prompt lever closed.** Logged in [training_progress.md](training_progress.md).
 20. [x] **B20 — Moderate+ severity 2× oversample + LoRA r=32 on B17**, 3 ep — AVG **0.542** (≈ tie B17); `pd_analysis` coverage **0.143** unchanged. **Severity oversampling closed.** Logged in [training_progress.md](training_progress.md).
-21. [ ] **B21 — constrained seven-slot output** using B17 predictions; no retraining. Save structured predictions + metrics under `runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode/`.
-22. [ ] **B22 — structure-aware reranking** using B17 multi-candidate generation; compare against B17 raw and B21.
+21. [x] **B21 — constrained seven-slot output** using B17 predictions; no retraining. **Closed:** coverage **1.0**, AVG **0.492** (raw **0.542**). Logged in [training_progress.md](training_progress.md).
+22. [x] **B22 — structure-aware reranking** using B17 multi-candidate generation. **Closed:** coverage **0.144**, AVG **0.531** (below B17 **0.542**). Logged in [training_progress.md](training_progress.md).
 23. [ ] **D1 — synthetic-vs-real report audit** before more training; confirm whether synthetic targets teach the same category/wording distribution as real reports.
-24. [ ] **B23 — structured seven-label target training** only after B21/B22/D1 clarify the failure mode.
-25. [ ] Add `category_coverage`, `severity_word_coverage`, and `all_7_slots_rate` to the standard logging workflow.
+24. [ ] **B23 — structured seven-label target training** — next after **D1** (B21/B22 decode levers **closed**).
+25. [x] Add `category_coverage`, `severity_word_coverage`, and `all_7_slots_rate` to the standard logging workflow — via `main.structured_decode` (B21).
 
 ---
 
 ## Commands cheat sheet
 
-**B21/B22 implementation note:** these are primarily evaluation/decoding experiments and may require adding a small utility module first, e.g. `main.structured_decode` or extending `main.eval_decode` with `--force-seven-slot-template`, `--num-return-sequences`, and `--structure-rerank`.
+**B21/B22 implementation note:** `main.structured_decode` — B21 **closed** (forced template); B22 **closed** (structure rerank).
 
 **B21 decode eval target (GPU — no retraining, after utility is implemented):**
 
@@ -937,11 +923,11 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 ## Out of scope
 
 - Changing ETL / biomarker set without documented ablation
-- More broad LR/epoch/model-size sweeps before B21/B22/D1 are complete
+- More broad LR/epoch/model-size sweeps before **D1/B23** address the structural failure mode (B21/B22 **closed**)
 - Training 7B LLMs in this repo track
 - Clinician-in-the-loop study (future)
 - Alex cluster unless Tier3 access approved
 
 ---
 
-*Last updated: 2026-06-24. **B17** remains best reporting config (AVG **0.542**). **B18** and **B20** tie B17, so ordinary training levers are plateaued. Next priority: structure-forcing and schema reliability (**B21 → B22 → B23**, plus **D1** audit). Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-24. **B17** remains best reporting config (AVG **0.542**). **B21/B22 closed** at decode time (structure not fixable without retraining). Next: **D1 → B23**. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
