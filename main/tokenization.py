@@ -115,7 +115,12 @@ def tokenize_dataset_dict(
         keep = tuple(c for c in passthrough_columns if c in ds.column_names)
         if "reference_prose" in ds.column_names and "reference_prose" not in keep:
             keep = (*keep, "reference_prose")
-        cols = [source_column, target_column, *keep]
+        # ``source_text`` / ``target_text`` are encoded once; still copy ``target_text`` through.
+        passthrough = tuple(c for c in keep if c not in (source_column, target_column))
+        passthrough_for_map = passthrough
+        if target_column in ds.column_names:
+            passthrough_for_map = (target_column, *passthrough)
+        cols = [source_column, target_column, *passthrough]
         subset = ds.select_columns(cols)
         out[k] = tokenize_seq2seq(
             subset,
@@ -125,6 +130,6 @@ def tokenize_dataset_dict(
             max_source_length=max_source_length,
             max_target_length=max_target_length,
             padding=padding,
-            passthrough_columns=keep,
+            passthrough_columns=passthrough_for_map,
         )
     return DatasetDict(out)
