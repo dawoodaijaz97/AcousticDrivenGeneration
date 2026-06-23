@@ -53,8 +53,9 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | **B17** | flan-t5-base | 100k | 5e-4 | 1.145 | 0.604 | 0.389 | 0.531 | 0.362 | 0.823 | **0.542** |
 | B18 | flan-t5-base | 100k | 5e-4 | 1.145 | 0.605 | 0.390 | 0.530 | 0.362 | 0.823 | **0.542** |
 | B19 | flan-t5-base | 100k | 5e-4 | 1.156 | 0.600 | 0.386 | 0.530 | 0.361 | 0.822 | **0.540** |
+| B20 | flan-t5-base | 100k | 5e-4 | 1.146 | 0.604 | 0.389 | 0.531 | 0.362 | 0.824 | **0.542** |
 
-↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B17** = B11 checkpoint + **LoRA rank 32**, 3 ep — **best reporting config** (AVG **0.542**). **B18** ≈ tie B17; **longer LoRA closed**. **B19** = `flan-paper-report-template` + LoRA on B17 — **below B17** (AVG **0.540**); **template prompt closed** (7-slot coverage ≈ unchanged).
+↓ lower is better for `test_loss`; ↑ higher is better for decode metrics. **B17** = B11 checkpoint + **LoRA rank 32**, 3 ep — **best reporting config** (AVG **0.542**). **B20** = Moderate+ **2× oversample** + LoRA on B17 — **≈ tie** B17 (AVG **0.542**); **oversampling closed**. **B19** template prompt **closed** (below B17). **B18** longer LoRA **closed**.
 
 **Run directories:** `runs/flan-t5-small/{100k,100k-lr5e4,100k-lr3e4,10k-lr1e4,10k-lr3e4,10k-lr5e4,1k}`, `runs/flan-t5-base/{100k,100k-lr5e4,100k-flan-paper,100k-flan-paper-categories,100k-flan-paper-numeric-labels,100k-flan-paper-ls002,100k-flan-paper-ls005,100k-flan-paper-ls010,100k-flan-paper-5ep,100k-flan-paper-5ep-wd0,100k-flan-paper-5ep-wd005,100k-flan-paper-5ep-lora8,100k-flan-paper-5ep-lora16,100k-flan-paper-5ep-lora32,100k-flan-paper-5ep-lora32-5ep,100k-flan-paper-report-template-lora32,100k-flan-paper-5ep-freeze-enc}`, `runs/flan-t5-large/{100k,100k-lr5e4,100k-flan-paper-5ep}`, `runs/t5-base/100k-flan-paper-5ep`.
 
@@ -94,6 +95,7 @@ Metrics from **`main.eval_decode`** (real **test**, 96 rows; beam 3, max 512 tok
 | **B17** | 0.513 | 0.571 | 0.383 |
 | B18 | 0.514 | 0.570 | 0.384 |
 | B19 | 0.509 | 0.572 | 0.388 |
+| B20 | 0.513 | 0.570 | 0.384 |
 
 ---
 
@@ -228,7 +230,15 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **`test_loss` 1.156** vs B17 **1.145**.
 - **By group:** **PD AVG 0.509** vs B17 **0.513** (−0.004); **HC AVG 0.572** vs **0.571** (+0.001); HC BLEU **0.388** vs **0.383** (+0.005). Slight HC lift, PD regression — same HC-heavy pattern as B11 epochs.
 - **PD structure (`pd_analysis.json`):** `mean_coverage_hyp` **0.143** (≈ B14/B17 **~0.14**); refs **1.0**. **Breathing** hyp presence **99%**; **Lips–Intelligibility** still **0–1%**. PD severity match **0.479** (≈ unchanged). **Output-template prefix did not fix 7-slot structure.**
-- **Takeaway:** **Template prompt lever closed** — instructing `Category (Severity):` format in the encoder prefix is not enough. **Keep B17** for reporting. Next: **PD oversampling**, **constrained decoding**, or training-time structure losses (not more prefix variants like B6/B7/B19).
+- **Takeaway:** **Template prompt lever closed** — instructing `Category (Severity):` format in the encoder prefix is not enough. **Keep B17** for reporting. Next: **constrained decoding** (not more prefix/oversampling variants).
+
+### Phase 2 / data — severity oversampling (B20) — closed (2026-06-15)
+
+- **B20** (LoRA r=32 on B17, 3 ep, **`--oversample-severity-min Moderate --oversample-factor 2`**) **≈ ties B17** on decode: AVG **0.542** vs **0.542** (+0.0002); R-1 **0.604**, R-2 **0.389**, BLEU **0.362**, BERT **0.824**.
+- **`test_loss` 1.146** vs B17 **1.145** (≈ tie). Train used ~150k rows after 2× duplicate of Moderate+ synthetic reports (PD/HC labels absent on train).
+- **By group:** **PD AVG 0.513** vs B17 **0.513** (tie); **HC AVG 0.570** vs **0.571** (−0.001); HC BLEU **0.384** vs **0.383**.
+- **PD structure (`pd_analysis.json`):** `mean_coverage_hyp` **0.143** (≈ unchanged); Breathing **100%** hyp presence; Lips–Intelligibility still **0–1%**; PD severity match **0.479** (unchanged).
+- **Takeaway:** **Severity oversampling lever closed** — duplicating Moderate+ training rows does not lift real-test PD decode or 7-slot structure. **Keep B17** as reporting config.
 
 ### Phase 4 — LoRA on B11 (B14) — prior note
 
@@ -260,7 +270,7 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### Model size
 
-- **Best run to date:** **B17 — LoRA rank 32 on B11 checkpoint, 3 ep** (**AVG 0.542**); **B18** ≈ tie; **B19** below B17 (**0.540**). Template prompt **closed**.
+- **Best run to date:** **B17 — LoRA rank 32 on B11 checkpoint, 3 ep** (**AVG 0.542**); **B20** ≈ tie; **B19** below B17 (**0.540**). Template + severity oversampling **closed**.
 - **Best full fine-tune:** **B11** (0.538).
 - **Best small @ 100k:** **S4** (**AVG 0.437**).
 - **Large:** L0/L4 (3 ep) ~0.500 → **L5 (5 ep) 0.536**, still only ties base — large is not worth its cost here.
@@ -268,7 +278,7 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (AVG **0.542**). **B19 closed**. **Next:** **B20** — PD 2× oversample + LoRA on B17 (`scripts/hpc/train_flan_t5_base_b20_pd_oversample_lora32_a100.slurm`).
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (AVG **0.542**). **B20 closed** (≈ tie; no PD/structure gain). **Next:** constrained decoding.
 
 ### `test_loss` vs generation metrics
 
@@ -293,4 +303,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-15 (**B19** template prompt AVG **0.540**, 7-slot coverage **0.143** unchanged — lever closed. **B17** remains best). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-15 (**B20** severity 2× oversample ≈ tie **AVG 0.542**; coverage **0.143** unchanged — lever closed. **B17** remains best). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*

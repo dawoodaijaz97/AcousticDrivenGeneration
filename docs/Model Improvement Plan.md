@@ -19,6 +19,19 @@
 
 **Best run:** **B17** — B11 checkpoint + **LoRA rank 32**, 3 ep, LR **5e-4**, AVG **0.542** (beats B14 **0.540** and B11 **0.538**; see [training_progress.md](training_progress.md)). **B18** (LoRA r=32 on B17, 5 ep) ≈ **tie** (AVG **0.542**); **longer LoRA lever closed**. **Best full fine-tune:** **B11** (0.538).
 
+### 2026-06-24 diagnosis — plateau is structural, not just training
+
+The current plateau is not primarily a model-size or learning-rate problem. Base, large, LoRA rank, longer LoRA, freeze-encoder, weight decay, prompt-only template, label smoothing, and severity oversampling have all been tested and are either closed or tied. The next bottleneck is **schema reliability**: decoded reports need to consistently preserve all seven mFDA categories.
+
+**Primary failure mode:** generated reports are report-like, but they do not reliably emit the full seven-slot clinical structure. The PD structure analysis showed category coverage around **0.143**, with **Breathing** dominating and the remaining categories often missing. Therefore, the next plan should prioritize **constrained decoding, structure-aware reranking, and structured targets** before spending more GPU time on normal fine-tuning.
+
+**Immediate priority order:**
+
+1. **B21:** B17 + forced seven-slot post-processing / constrained template output.
+2. **B22:** B17 + multi-candidate generation + structure-aware reranking.
+3. **D1:** synthetic-vs-real target/report distribution audit.
+4. **B23:** train a structured seven-label target format, then verbalize through a deterministic report template.
+
 ---
 
 ## Master checklist
@@ -33,6 +46,8 @@
 - [x] Compare **checkpoints** vs `final_model` on **B5** (2026-05-29; use `final_model`, not val-loss step)
 - [ ] Optional: wandb / tensorboard (`--report-to`)
 - [x] Per-category keyword/slot checks on decoded text — **B14 PD analysis** (`main/analyze_pd_decode`, `pd_analysis.json`)
+- [ ] Add schema/slot coverage to standard eval outputs (`category_coverage`, `severity_word_coverage`, `all_7_slots_rate`)
+- [ ] Add structure-aware reranking utility for multi-candidate decode outputs
 - [ ] Wire `compute_metrics` + `--predict-with-generate` in `main/train.py` (medium priority)
 
 ### Model size — Flan-T5-small (~77M)
@@ -67,7 +82,10 @@
 - [x] **B15** — freeze encoder on B11 `final_model`, 3 ep — AVG **0.529** (below B11 **0.538**); **freeze-encoder lever closed**
 - [x] PD-targeted analysis on **B14** — structural slot check (`pd_analysis.json`); see [training_progress.md](training_progress.md)
 - [x] **B19** — `flan-paper-report-template` prompt + LoRA r=32 on B17, 3 ep — AVG **0.540** (below B17 **0.542**); category coverage **≈14%** unchanged; **template prompt closed**
-- [ ] **B20** — **Moderate+ severity 2× oversample** + LoRA r=32 on B17, 3 ep (PD proxy; simulated train has `group=None`)
+- [x] **B20** — **Moderate+ severity 2× oversample** + LoRA r=32 on B17, 3 ep — AVG **0.542** (≈ tie B17); PD **0.513**; coverage **0.143** unchanged; **oversampling closed**
+- [ ] **B21** — B17 + **forced seven-slot constrained/post-processed output**; no retraining; compare raw vs structured decode on real test
+- [ ] **B22** — B17 + **multi-candidate generation + structure-aware reranking**; no retraining; select candidate with strongest category/severity coverage
+- [ ] **B23** — train **structured seven-label target** (`Breathing: Mild`, ..., `Intelligibility: Normal`) and generate final prose with deterministic template
 
 ### Model size — Flan-T5-large
 
@@ -84,6 +102,8 @@
 - [ ] `--no-eval-train` wall-clock trial (one 10k run)
 - [ ] FP16 on A100 only (V100 had NaN with fp16)
 - [ ] Leakage audit (`example_hash` train/val/test)
+- [ ] **D1 synthetic-vs-real audit:** compare target/report structure, category frequency, severity distribution, phrase repetition, and PD/HC wording drift
+- [ ] Use structure metrics as promotion gates: do not promote a run that improves AVG while keeping category coverage near **0.143**
 
 ---
 
@@ -136,6 +156,58 @@
 - [x] Compare **`google-t5/t5-base`** (non-Flan) at same pipeline — **N0** AVG **0.439**, well below B11 **0.538**; **closed**
 - [ ] Optional: **`google-t5/t5-small`** (non-Flan) at same pipeline — deprioritized after N0
 
+### Phase 5 — Structure-forcing and schema reliability (current priority)
+
+**Goal:** move from free-form report-like text to clinically valid seven-category mFDA output. A run should now be judged on both standard generation metrics and structure metrics.
+
+- [ ] **B21 — constrained seven-slot output, no retraining**
+  - Source model: `runs/flan-t5-base/100k-flan-paper-5ep-lora32/final_model` (**B17**)
+  - Method: decode normally, then normalize into a mandatory seven-category skeleton
+  - Required skeleton:
+
+    ```text
+    Breathing (Severity): ...
+    Lips (Severity): ...
+    Larynx (Severity): ...
+    Palate (Severity): ...
+    Monotonicity (Severity): ...
+    Tongue (Severity): ...
+    Intelligibility (Severity): ...
+    ```
+
+  - Track: standard AVG, PD/HC AVG, category coverage, severity-word coverage, `all_7_slots_rate`
+  - Promotion gate: category coverage should increase from **0.143** to at least **0.90** without a major AVG collapse
+
+- [ ] **B22 — structure-aware reranking, no retraining**
+  - Source model: **B17**
+  - Generate multiple candidates per test item (`num_beams` 5–8, `num_return_sequences` 3–5)
+  - Score candidates using normal decode score + structure bonus
+  - Structure bonus: reward presence of all seven category names and a valid severity word (`Normal`, `Mild`, `Moderate`, `Severe`) for each category
+  - Compare against B17 raw and B21 forced-template output
+
+- [ ] **D1 — synthetic-vs-real report distribution audit**
+  - Compare train/val synthetic targets vs real test references
+  - Check category heading frequency, severity distribution per category, report length, repeated phrases, PD/HC wording drift, and whether synthetic targets overrepresent Breathing-like wording
+  - Output artifact: `analysis/synthetic_real_report_audit.json` plus a short Markdown summary
+
+- [ ] **B23 — structured target training**
+  - Replace prose target with seven-label target format:
+
+    ```text
+    Breathing: Mild
+    Lips: Normal
+    Larynx: Moderate
+    Palate: Normal
+    Monotonicity: Mild
+    Tongue: Moderate
+    Intelligibility: Mild
+    ```
+
+  - Train/evaluate as structured prediction first; then verbalize using deterministic clinical report templates
+  - Track both label accuracy/F1 per category and final text metrics after verbalization
+
+**Do not resume broad training sweeps until B21/B22/D1 clarify whether structure forcing fixes the current plateau.**
+
 ---
 
 ## Workstream details
@@ -149,6 +221,8 @@
 | Use decode metrics to select configs (not val loss alone) | [x] |
 | Checkpoint comparison | [x] (B5; `final_model`) |
 | Training-time generation metrics | [ ] |
+| Category coverage / slot coverage metrics | [ ] |
+| Structure-aware promotion gate | [ ] |
 
 ### B. Training hyperparameters
 
@@ -168,6 +242,9 @@
 | Category hints in prefix (B6 completed; below B5) | [x] |
 | Numeric formatting / category labels (B7 completed; below B5) | [x] |
 | Seven-slot output template in prefix (B19) | [x] (below B17; coverage unchanged) |
+| Forced seven-slot output after decode (B21) | [ ] |
+| Multi-candidate structure-aware reranking (B22) | [ ] |
+| Structured seven-label target format (B23) | [ ] |
 | `max_source_length` / `max_target_length` audit | [x] (B5 data; 256/512 OK) |
 
 ### D. Data and splits
@@ -178,9 +255,10 @@
 | Fast 1k smoke runs | [x] |
 | `google-t5/t5-base` comparison | [x] **N0** AVG **0.439** vs B11 **0.538** — closed |
 | `google-t5/t5-small` comparison | [ ] deprioritized after N0 |
-| PD group oversampling (B20) | [ ] |
+| PD group oversampling (B20) | [x] (severity proxy; ≈ tie B17; coverage unchanged) |
 | `--no-eval-train` trial | [ ] |
 | Leakage audit | [ ] |
+| Synthetic-vs-real target/report distribution audit (D1) | [ ] |
 
 ### E. Model efficiency
 
@@ -198,6 +276,8 @@
 | Beam size sweep | [x] (B5: beam 3 best; see training_progress) |
 | `max_new_tokens` ~512 | [x] |
 | `no_repeat_ngram` 2 | [x] (paper-aligned in eval) |
+| Constrained seven-slot template output | [ ] B21 |
+| Structure-aware candidate reranking | [ ] B22 |
 
 ---
 
@@ -233,8 +313,12 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B17** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32` | LoRA **r=32** on B11 `final_model`, 3 ep; AVG **0.542** (**new best**); PD **0.513** / HC **0.571**; LoRA rank sweep closed |
 | **B18** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-5ep` | LoRA **r=32** on B17 `final_model`, **5 ep**; AVG **0.542** (≈ tie B17); PD **0.514** / HC **0.570**; **longer LoRA closed** |
 | **B19** | flan-t5-base | 100k | flan-paper-report-template | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-report-template-lora32` | LoRA **r=32** on B17, 3 ep; AVG **0.540** (vs B17 **0.542**); PD **0.509** / HC **0.572**; `pd_analysis` coverage **0.143** (≈ B17); **template prompt closed** |
-| **B20** | flan-t5-base | 100k | flan-paper | 5e-4 | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x` | LoRA **r=32** on B17, 3 ep; **`--oversample-severity-min Moderate --oversample-factor 2`** (PD proxy — train has no PD/HC labels) |
+| **B20** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-pd-2x` | LoRA **r=32** on B17, 3 ep; **`--oversample-severity-min Moderate --oversample-factor 2`**; AVG **0.542** (≈ B17); PD **0.513**; coverage **0.143** unchanged; **closed** |
 | **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
+| **B21** | flan-t5-base | 100k | flan-paper | n/a | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode` | **No retraining.** B17 + forced seven-slot constrained/post-processed output; priority metric = category coverage / `all_7_slots_rate` |
+| **B22** | flan-t5-base | 100k | flan-paper | n/a | [ ] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank` | **No retraining.** B17 + multi-candidate decode + structure-aware reranking |
+| **D1** | data audit | train/val/test | n/a | n/a | [ ] | `analysis/synthetic_real_report_audit.json` | Synthetic-vs-real report/target distribution audit before more training |
+| **B23** | flan-t5-base | 100k | structured-seven-label | 5e-4 | [ ] | `runs/flan-t5-base/100k-structured-seven-label` | Train structured category/severity labels first; deterministic template verbalization after |
 
 ---
 
@@ -243,8 +327,9 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | Tier | Small | Base (primary push) |
 |------|-------|---------------------|
 | **Minimum** | Reproducible decode JSON | Same |
-| **Target** | S4: AVG **> 0.362**, HC BLEU **> 0.117** | Phase 2 beat **B4** (0.522) |
-| **Stretch** | Narrow gap to paper small-tier | Approach paper ~0.68 band |
+| **Target** | S4: AVG **> 0.362**, HC BLEU **> 0.117** | Beat B17 **0.542** while improving schema coverage |
+| **Structure target** | n/a | Category coverage **0.143 → ≥0.90**, `all_7_slots_rate` clearly above B17 |
+| **Stretch** | Narrow gap to paper small-tier | Approach paper ~0.68 band **with valid seven-category reports** |
 
 ---
 
@@ -269,12 +354,67 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 17. [x] **B16 — LoRA rank 8** on B11 — AVG **0.538** (≈ tie B11); **B17 — LoRA rank 32** — AVG **0.542** (**new best**). **LoRA rank sweep closed.**
 18. [x] **B18 — LoRA rank 32 on B17 `final_model`, 5 ep** — AVG **0.542** (≈ tie B17 **0.542**); PD **0.514** / HC **0.570**. **Longer LoRA lever closed.** Logged in [training_progress.md](training_progress.md).
 19. [x] **B19 — `flan-paper-report-template` + LoRA r=32 on B17**, 3 ep — AVG **0.540** (below B17 **0.542**); `pd_analysis` category coverage **0.143** (≈ unchanged); **template prompt lever closed.** Logged in [training_progress.md](training_progress.md).
-20. [ ] **B20 — PD 2× oversample + LoRA r=32 on B17**, 3 ep — train → `eval_decode` + `analyze_pd_decode`; log in [training_progress.md](training_progress.md).
-21. [ ] **After B20:** constrained decoding or further data levers if PD oversampling does not lift PD AVG / category coverage.
+20. [x] **B20 — Moderate+ severity 2× oversample + LoRA r=32 on B17**, 3 ep — AVG **0.542** (≈ tie B17); `pd_analysis` coverage **0.143** unchanged. **Severity oversampling closed.** Logged in [training_progress.md](training_progress.md).
+21. [ ] **B21 — constrained seven-slot output** using B17 predictions; no retraining. Save structured predictions + metrics under `runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode/`.
+22. [ ] **B22 — structure-aware reranking** using B17 multi-candidate generation; compare against B17 raw and B21.
+23. [ ] **D1 — synthetic-vs-real report audit** before more training; confirm whether synthetic targets teach the same category/wording distribution as real reports.
+24. [ ] **B23 — structured seven-label target training** only after B21/B22/D1 clarify the failure mode.
+25. [ ] Add `category_coverage`, `severity_word_coverage`, and `all_7_slots_rate` to the standard logging workflow.
 
 ---
 
 ## Commands cheat sheet
+
+**B21/B22 implementation note:** these are primarily evaluation/decoding experiments and may require adding a small utility module first, e.g. `main.structured_decode` or extending `main.eval_decode` with `--force-seven-slot-template`, `--num-return-sequences`, and `--structure-rerank`.
+
+**B21 decode eval target (GPU — no retraining, after utility is implemented):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.structured_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-5ep-lora32/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode/test_decode_metrics.json \
+  --output-predictions-json runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode/test_decode_predictions.json \
+  --force-seven-slot-template \
+  --batch-size 8 --seed 42 \
+  --require-gpu
+```
+
+**B22 structure-aware reranking target (GPU — no retraining, after utility is implemented):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.structured_decode \
+  --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized \
+  --model-path runs/flan-t5-base/100k-flan-paper-5ep-lora32/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank/test_decode_metrics.json \
+  --output-predictions-json runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank/test_decode_predictions.json \
+  --num-beams 8 \
+  --num-return-sequences 5 \
+  --structure-rerank \
+  --batch-size 4 --seed 42 \
+  --require-gpu
+```
+
+**D1 synthetic-vs-real report audit target:**
+
+```bash
+python -m main.audit_report_distribution \
+  --train data/Data_splits/100k_samples_balanced/train_split.csv \
+  --val data/Data_splits/100k_samples_balanced/val_split.csv \
+  --test data/Data_splits/100k_samples_balanced/test_split.csv \
+  --output-json analysis/synthetic_real_report_audit.json \
+  --output-md analysis/synthetic_real_report_audit.md
+```
 
 **B5 prepare (CPU — `tinyx` login; proxy for tokenizer if needed):**
 
@@ -797,10 +937,11 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 ## Out of scope
 
 - Changing ETL / biomarker set without documented ablation
+- More broad LR/epoch/model-size sweeps before B21/B22/D1 are complete
 - Training 7B LLMs in this repo track
 - Clinician-in-the-loop study (future)
 - Alex cluster unless Tier3 access approved
 
 ---
 
-*Last updated: 2026-06-15. **B17** remains best reporting config (AVG **0.542**). **B19 closed**. **B20 queued** — PD 2× oversample + LoRA on B17. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-24. **B17** remains best reporting config (AVG **0.542**). **B18** and **B20** tie B17, so ordinary training levers are plateaued. Next priority: structure-forcing and schema reliability (**B21 → B22 → B23**, plus **D1** audit). Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
