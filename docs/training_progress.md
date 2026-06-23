@@ -258,6 +258,15 @@ Best **`eval_val_loss`** step was **74922** (loss **0.0000** on synthetic val) b
 - **Takeaway:** **Structure reranking lever closed** — multi-candidate decode does not surface fuller 7-slot hypotheses. **Keep B17** for reporting. **Next:** **D1** synthetic-vs-real audit, then **B23** structured target training.
 - **Artifacts:** `runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank/test_decode_metrics.json`.
 
+### D1 — synthetic-vs-real report audit — complete (2026-06-24)
+
+- **Artifacts:** `analysis/synthetic_real_report_audit.json`, `analysis/synthetic_real_report_audit.md` (`main.audit_report_distribution`).
+- **Structure in targets:** train/val/test all **`category_coverage` 1.0**, **`all_7_slots_rate` 1.0** — every category present in every reference (synthetic and real).
+- **Synthetic vs real:** coverage delta **0.0**; Breathing presence delta **0.0** — **no missing-category template bug** in ETL/synthetic data.
+- **Duplicate targets:** synthetic train **~95%**, val **~85%**, real test **~50%** — heavy phrase repetition in synthetic data (memorization risk) but not a slot-structure gap.
+- **PD/HC (test):** both groups **coverage 1.0**; PD reports longer (p50 **478** chars) vs HC (**404**).
+- **Takeaway:** Model decode **~14%** slot coverage vs **100%** in training targets → failure is **generation/training dynamics**, not absent structure in data. **Decode-only fixes (B21/B22) confirmed insufficient.** **Next:** **B23** structured seven-label training (`--target-format structured-seven-label`).
+
 ### Phase 2 / data — severity oversampling (B20) — closed (2026-06-15)
 
 - **B20** (LoRA r=32 on B17, 3 ep, **`--oversample-severity-min Moderate --oversample-factor 2`**) **≈ ties B17** on decode: AVG **0.542** vs **0.542** (+0.0002); R-1 **0.604**, R-2 **0.389**, BLEU **0.362**, BERT **0.824**.
@@ -304,7 +313,7 @@ Artifact: `runs/flan-t5-base/100k-flan-paper-5ep-lora16/pd_analysis.json` (`main
 
 ### What to run next
 
-See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (AVG **0.542**). **B21/B22 closed** (post-process and rerank do not fix structure at acceptable AVG). **Next:** **D1** audit, then **B23** structured targets.
+See **[Model Improvement Plan](Model%20Improvement%20Plan.md)**. Best reporting config remains **B17** (AVG **0.542**). **D1 complete** — targets fully structured; gap is model generation. **Next:** run **B23** (prepare → train → `main.eval_structured`).
 
 ### `test_loss` vs generation metrics
 
@@ -329,4 +338,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-06-24 (**B22** structure rerank: coverage **0.144** unchanged, AVG **0.531** vs B17 **0.542** — lever closed. **B17** remains best). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-06-24 (**D1** audit complete: target coverage **1.0**; decode gap confirmed. **B23** pipeline implemented — run pending). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*

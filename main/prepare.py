@@ -13,6 +13,7 @@ from main.io import (
 )
 from main.paths import repair_shell_collapsed_path, repo_root, resolve_under_repo
 from main.prompts import resolve_prompt_style
+from main.structured_targets import apply_structured_target_format
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -86,6 +87,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--target-format",
+        choices=("prose", "structured-seven-label"),
+        default="prose",
+        help=(
+            "Decoder target format: prose = full clinical report (default); "
+            "structured-seven-label = one 'Category: Severity' line per mFDA slot (B23)."
+        ),
+    )
+    p.add_argument(
         "--lm-studio-base-url",
         type=str,
         default=None,
@@ -122,12 +132,16 @@ def main(argv: list[str] | None = None) -> int:
     _log(f"repo_root        = {root}")
     _log(f"train_size       = {train_size}")
     _log(f"prompt_style     = {args.prompt_style}")
+    _log(f"target_format    = {args.target_format}")
     task_prefix = resolve_prompt_style(args.prompt_style)
     _log(f"task_prefix      = {task_prefix!r}")
     _log(f"output_dir       = {out_dir}")
 
     _log("loading splits via etl ...")
     splits = load_pipeline_splits(root, train_size=train_size)
+    if args.target_format == "structured-seven-label":
+        _log("converting target_text -> structured seven-label format (reference_prose kept) ...")
+        splits = apply_structured_target_format(splits)
     for name, df in splits.items():
         _log(f"  {name:<5} -> {len(df):>7,} rows")
 
@@ -148,6 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     prepare_config = {
         "train_size": train_size,
         "prompt_style": args.prompt_style,
+        "target_format": args.target_format,
         "task_prefix": task_prefix,
         "max_source_length": args.max_source_length,
         "max_target_length": args.max_target_length,

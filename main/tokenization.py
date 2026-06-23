@@ -113,6 +113,8 @@ def tokenize_dataset_dict(
     out: dict[str, Dataset] = {}
     for k, ds in ddict.items():
         keep = tuple(c for c in passthrough_columns if c in ds.column_names)
+        if "reference_prose" in ds.column_names and "reference_prose" not in keep:
+            keep = (*keep, "reference_prose")
         cols = [source_column, target_column, *keep]
         subset = ds.select_columns(cols)
         out[k] = tokenize_seq2seq(

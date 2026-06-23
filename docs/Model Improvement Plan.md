@@ -29,8 +29,8 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 
 1. ~~**B21:** B17 + forced seven-slot post-processing~~ — **done; closed** (coverage **1.0**, AVG **0.492** vs B17 **0.542**; see [training_progress.md](training_progress.md)).
 2. ~~**B22:** B17 + multi-candidate generation + structure-aware reranking~~ — **done; closed** (coverage **0.144** unchanged, AVG **0.531** vs B17 **0.542**; see [training_progress.md](training_progress.md)).
-3. **D1:** synthetic-vs-real target/report distribution audit.
-4. **B23:** train a structured seven-label target format, then verbalize through a deterministic report template.
+3. ~~**D1:** synthetic-vs-real target/report distribution audit~~ — **done** (targets **coverage 1.0**; model decode gap confirmed; see [training_progress.md](training_progress.md)).
+4. **B23:** train structured seven-label targets (`--target-format structured-seven-label`), eval with `main.eval_structured`.
 
 ---
 
@@ -85,7 +85,7 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 - [x] **B20** — **Moderate+ severity 2× oversample** + LoRA r=32 on B17, 3 ep — AVG **0.542** (≈ tie B17); PD **0.513**; coverage **0.143** unchanged; **oversampling closed**
 - [x] **B21** — B17 + **forced seven-slot constrained/post-processed output**; no retraining; compare raw vs structured decode on real test — **closed:** coverage **1.0**, structured AVG **0.492** (raw **0.542** ≈ B17)
 - [x] **B22** — B17 + **multi-candidate generation + structure-aware reranking**; no retraining — **closed:** coverage **0.144** unchanged, AVG **0.531** (below B17 **0.542**)
-- [ ] **B23** — train **structured seven-label target** (`Breathing: Mild`, ..., `Intelligibility: Normal`) and generate final prose with deterministic template
+- [ ] **B23** — train **structured seven-label target** (`Breathing: Mild`, …); **`main.prepare --target-format structured-seven-label`**, train, **`main.eval_structured`**
 
 ### Model size — Flan-T5-large
 
@@ -102,7 +102,7 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 - [ ] `--no-eval-train` wall-clock trial (one 10k run)
 - [ ] FP16 on A100 only (V100 had NaN with fp16)
 - [ ] Leakage audit (`example_hash` train/val/test)
-- [ ] **D1 synthetic-vs-real audit:** compare target/report structure, category frequency, severity distribution, phrase repetition, and PD/HC wording drift
+- [x] **D1 synthetic-vs-real audit:** compare target/report structure — **done:** synthetic & real **coverage 1.0**; duplicate rate high on synthetic; decode gap is not missing ETL structure
 - [ ] Use structure metrics as promotion gates: do not promote a run that improves AVG while keeping category coverage near **0.143**
 
 ---
@@ -171,10 +171,9 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
   - **Result:** **`category_coverage` 0.144** / **`all_7_slots_rate` 0.0** (≈ B17); AVG **0.531** vs B17 **0.542** (−**0.011**) — candidates never contain fuller 7-slot structure; rerank cannot help
   - Artifacts: `runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank/`
 
-- [ ] **D1 — synthetic-vs-real report distribution audit**
-  - Compare train/val synthetic targets vs real test references
-  - Check category heading frequency, severity distribution per category, report length, repeated phrases, PD/HC wording drift, and whether synthetic targets overrepresent Breathing-like wording
-  - Output artifact: `analysis/synthetic_real_report_audit.json` plus a short Markdown summary
+- [x] **D1 — synthetic-vs-real report distribution audit** — **complete (2026-06-24)**
+  - Artifacts: `analysis/synthetic_real_report_audit.json`, `.md`
+  - **Result:** train/val/test targets all **7-slot coverage 1.0**; synthetic duplicate rate **~95%** train; model decode **~14%** → train on simpler seven-label targets (**B23**)
 
 - [ ] **B23 — structured target training**
   - Replace prose target with seven-label target format:
@@ -244,7 +243,7 @@ The current plateau is not primarily a model-size or learning-rate problem. Base
 | PD group oversampling (B20) | [x] (severity proxy; ≈ tie B17; coverage unchanged) |
 | `--no-eval-train` trial | [ ] |
 | Leakage audit | [ ] |
-| Synthetic-vs-real target/report distribution audit (D1) | [ ] |
+| Synthetic-vs-real target/report distribution audit (D1) | [x] (coverage 1.0 both; decode gap confirmed) |
 
 ### E. Model efficiency
 
@@ -303,7 +302,7 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 | **B15** | flan-t5-base | 100k | flan-paper | 5e-4 | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-freeze-enc` | **`--freeze-encoder`** on B11 `final_model`, 3 ep; AVG **0.529** (vs B11 **0.538**); PD **0.499** / HC **0.560**; **freeze-encoder closed** |
 | **B21** | flan-t5-base | 100k | flan-paper | n/a | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-structured-decode` | **No retraining.** B17 + forced seven-slot post-process — coverage **1.0**, structured AVG **0.492** (raw **0.542**); **closed** |
 | **B22** | flan-t5-base | 100k | flan-paper | n/a | [x] | `runs/flan-t5-base/100k-flan-paper-5ep-lora32-rerank` | **No retraining.** B17 + structure rerank — coverage **0.144** unchanged, AVG **0.531**; **closed** |
-| **D1** | data audit | train/val/test | n/a | n/a | [ ] | `analysis/synthetic_real_report_audit.json` | Synthetic-vs-real report/target distribution audit before more training |
+| **D1** | data audit | train/val/test | n/a | n/a | [x] | `analysis/synthetic_real_report_audit.json` | **Done:** target coverage **1.0**; high synthetic duplicates; supports **B23** |
 | **B23** | flan-t5-base | 100k | structured-seven-label | 5e-4 | [ ] | `runs/flan-t5-base/100k-structured-seven-label` | Train structured category/severity labels first; deterministic template verbalization after |
 
 ---
@@ -343,8 +342,8 @@ Run IDs link plan tasks to `runs/` folders. **Metrics:** [training_progress.md](
 20. [x] **B20 — Moderate+ severity 2× oversample + LoRA r=32 on B17**, 3 ep — AVG **0.542** (≈ tie B17); `pd_analysis` coverage **0.143** unchanged. **Severity oversampling closed.** Logged in [training_progress.md](training_progress.md).
 21. [x] **B21 — constrained seven-slot output** using B17 predictions; no retraining. **Closed:** coverage **1.0**, AVG **0.492** (raw **0.542**). Logged in [training_progress.md](training_progress.md).
 22. [x] **B22 — structure-aware reranking** using B17 multi-candidate generation. **Closed:** coverage **0.144**, AVG **0.531** (below B17 **0.542**). Logged in [training_progress.md](training_progress.md).
-23. [ ] **D1 — synthetic-vs-real report audit** before more training; confirm whether synthetic targets teach the same category/wording distribution as real reports.
-24. [ ] **B23 — structured seven-label target training** — next after **D1** (B21/B22 decode levers **closed**).
+23. [x] **D1 — synthetic-vs-real report audit** — **complete:** coverage **1.0** on all splits; decode gap not from missing ETL structure. Logged in [training_progress.md](training_progress.md).
+24. [ ] **B23 — structured seven-label target training** — pipeline ready: `main.prepare --target-format structured-seven-label`, LoRA train, `main.eval_structured`.
 25. [x] Add `category_coverage`, `severity_word_coverage`, and `all_7_slots_rate` to the standard logging workflow — via `main.structured_decode` (B21).
 
 ---
@@ -391,7 +390,7 @@ python -m main.structured_decode \
   --require-gpu
 ```
 
-**D1 synthetic-vs-real report audit target:**
+**D1 synthetic-vs-real report audit** (`main.audit_report_distribution`):
 
 ```bash
 python -m main.audit_report_distribution \
@@ -400,6 +399,48 @@ python -m main.audit_report_distribution \
   --test data/Data_splits/test_split.csv \
   --output-json analysis/synthetic_real_report_audit.json \
   --output-md analysis/synthetic_real_report_audit.md
+```
+
+**B23 prepare (CPU — tinyx or Woody):**
+
+```bash
+cd $WORK/AcousticDrivenGeneration
+conda activate acoustic
+module load python
+export HF_HOME=$WORK/huggingface
+export http_proxy=http://proxy.nhr.fau.de:80
+export https_proxy=http://proxy.nhr.fau.de:80
+
+python -m main.prepare \
+  --output-dir data/processed/flan-t5-base/100k-structured-seven-label \
+  --train-size 100k --tokenize \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --prompt-style flan-paper \
+  --target-format structured-seven-label \
+  --max-target-length 128
+```
+
+**B23 train (A100 — same LoRA recipe as B17, new tokenized data):**
+
+```bash
+sed -i 's/\r$//' scripts/hpc/train_flan_t5_base_b23_lora32_a100.slurm
+sbatch.tinygpu scripts/hpc/train_flan_t5_base_b23_lora32_a100.slurm
+```
+
+**B23 eval (GPU — label accuracy + verbalized prose AVG):**
+
+```bash
+export HF_HOME=$WORK/huggingface
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+python -m main.eval_structured \
+  --tokenized-dir data/processed/flan-t5-base/100k-structured-seven-label/tokenized \
+  --model-path runs/flan-t5-base/100k-structured-seven-label/final_model \
+  --tokenizer-model $WORK/models/flan-t5-base \
+  --output-json runs/flan-t5-base/100k-structured-seven-label/test_decode_metrics.json \
+  --output-predictions-json runs/flan-t5-base/100k-structured-seven-label/test_decode_predictions.json \
+  --batch-size 8 --max-new-tokens 128 --seed 42 --require-gpu
 ```
 
 **B5 prepare (CPU — `tinyx` login; proxy for tokenizer if needed):**
@@ -930,4 +971,4 @@ python -m main.plot_training_runs --runs-parent runs/flan-t5-base --output runs/
 
 ---
 
-*Last updated: 2026-06-24. **B17** remains best reporting config (AVG **0.542**). **B21/B22 closed** at decode time (structure not fixable without retraining). Next: **D1 → B23**. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
+*Last updated: 2026-06-24. **B17** remains best reporting config (AVG **0.542**). **D1 complete.** **B23** pipeline implemented — run prepare → train → eval. Plan only — mark `[x]` when done; record numbers in [training_progress.md](training_progress.md).*
