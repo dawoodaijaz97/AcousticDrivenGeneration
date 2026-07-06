@@ -166,6 +166,7 @@ def write_outputs(
         "is_real",
         "group",
         *FEATURE_COLS,
+        "instructions_raw",
         "input_text",
         "target_text",
         "source_file",

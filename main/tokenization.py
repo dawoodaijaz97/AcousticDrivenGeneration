@@ -76,15 +76,21 @@ def dataframe_splits_to_dataset_dict(
     *,
     task_prefix: str = DEFAULT_TASK_PREFIX,
     prompt_style: str | None = None,
+    input_column: str = "input_text",
 ) -> DatasetDict:
     """Build a ``DatasetDict`` from pandas frames keyed by split name."""
     parts: dict[str, Dataset] = {}
     for name, df in splits.items():
+        if input_column not in df.columns:
+            raise ValueError(
+                f"Split {name!r} missing column {input_column!r} required for encoder input."
+            )
         ds = Dataset.from_pandas(df, preserve_index=False)
         parts[name] = add_t5_text_columns(
             ds,
             task_prefix=task_prefix,
             prompt_style=prompt_style,
+            input_column=input_column,
         )
     return DatasetDict(parts)
 
