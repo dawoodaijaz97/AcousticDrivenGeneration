@@ -155,9 +155,25 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--bertscore-lang",
         type=str,
         default="en",
-        help="BERTScore language code (default en: the reports are English).",
+        help="BERTScore language code (default en: the reports are English). en -> roberta-large backbone.",
+    )
+    p.add_argument(
+        "--bertscore-model-type",
+        type=str,
+        default=None,
+        help=(
+            "Explicit BERTScore backbone (HF id or local path), overriding --bertscore-lang. "
+            "Use a cached path (e.g. $WORK/models/roberta-large) on offline compute nodes. "
+            "Note: a path not in bert_score's model2layers uses all layers, so scores may differ "
+            "slightly from the lang=en default; prefer caching 'roberta-large' by name for parity."
+        ),
     )
     p.add_argument("--bertscore-batch-size", type=int, default=32)
+    p.add_argument(
+        "--no-bertscore",
+        action="store_true",
+        help="Skip BERTScore entirely (BLEU + ROUGE only). Useful offline without a cached backbone.",
+    )
     return p.parse_args(argv)
 
 
@@ -227,16 +243,22 @@ def _subset_metrics_author(
     references: list[str],
     *,
     scorer: rouge_scorer.RougeScorer,
-    bert_m: Any,
+    bert_m: Any | None,
     bertscore_lang: str,
+    bertscore_model_type: str | None,
     bertscore_batch_size: int,
     bert_device: str,
 ) -> dict[str, Any]:
     """Per-example mean metrics with the authors' definitions (char BLEU-2,
-    stemmed ROUGE F1, BERTScore-en F1)."""
+    stemmed ROUGE F1, BERTScore-en F1).
+
+    BERTScore is skipped when ``bert_m`` is None (offline / no cached backbone /
+    ``--no-bertscore``): ``BERT`` is reported as null and ``AVG`` is the mean of
+    the four available metrics, flagged by ``avg_over``. ROUGE and char-BLEU need
+    no network, so the run still yields useful numbers."""
     n = len(hypotheses)
     if n == 0:
-        return {"n": 0, "R_1": 0.0, "R_2": 0.0, "R_L": 0.0, "BLEU": 0.0, "BERT": 0.0, "AVG": 0.0}
+        return {"n": 0, "R_1": 0.0, "R_2": 0.0, "R_L": 0.0, "BLEU": 0.0, "BERT": None, "AVG": 0.0}
 
     r1, r2, rl, bleu = [], [], [], []
     for ref, hyp in zip(references, hypotheses):
@@ -247,30 +269,39 @@ def _subset_metrics_author(
         rl.append(s["rougeL"].fmeasure)
         bleu.append(_char_bleu2(ref, hyp))
 
-    bs_out = bert_m.compute(
-        predictions=hypotheses,
-        references=references,
-        lang=bertscore_lang,
-        batch_size=bertscore_batch_size,
-        device=bert_device,
-        rescale_with_baseline=False,
-    )
-    bert_f1 = [float(x) for x in bs_out["f1"]]
+    bert_f1: list[float] = []
+    bert_mean: float | None = None
+    if bert_m is not None:
+        bs_kwargs: dict[str, Any] = {
+            "predictions": hypotheses,
+            "references": references,
+            "batch_size": bertscore_batch_size,
+            "device": bert_device,
+            "rescale_with_baseline": False,
+        }
+        if bertscore_model_type:
+            bs_kwargs["model_type"] = bertscore_model_type
+        else:
+            bs_kwargs["lang"] = bertscore_lang
+        bs_out = bert_m.compute(**bs_kwargs)
+        bert_f1 = [float(x) for x in bs_out["f1"]]
+        bert_mean = float(np.mean(bert_f1)) if bert_f1 else 0.0
 
     r1_m = float(np.mean(r1))
     r2_m = float(np.mean(r2))
     rl_m = float(np.mean(rl))
     bleu_m = float(np.mean(bleu))
-    bert_m_ = float(np.mean(bert_f1)) if bert_f1 else 0.0
 
+    present = [r1_m, r2_m, rl_m, bleu_m] + ([bert_mean] if bert_mean is not None else [])
     return {
         "n": n,
         "R_1": r1_m,
         "R_2": r2_m,
         "R_L": rl_m,
         "BLEU": bleu_m,
-        "BERT": bert_m_,
-        "AVG": float((r1_m + r2_m + rl_m + bleu_m + bert_m_) / 5.0),
+        "BERT": bert_mean,
+        "AVG": float(sum(present) / len(present)),
+        "avg_over": ["R_1", "R_2", "R_L", "BLEU"] + (["BERT"] if bert_mean is not None else []),
         "diagnostics": {
             "bleu_is": "char-level BLEU-2 (nltk raw-string call, weights=(0.5,0.5))",
             "bertscore_f1_per_example": bert_f1,
@@ -408,7 +439,40 @@ def main(argv: list[str] | None = None) -> int:
 
     bert_device = "cuda" if device.type == "cuda" else "cpu"
     scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
-    bert_m = evaluate.load("bertscore")
+
+    # BERTScore is the only metric that needs a network fetch (its backbone, e.g.
+    # roberta-large for lang=en). Preflight it now so an offline/uncached failure
+    # falls back to BLEU+ROUGE instead of discarding the completed decode.
+    bert_m: Any | None = None
+    bertscore_status = "ok"
+    if args.no_bertscore:
+        bertscore_status = "skipped (--no-bertscore)"
+        _log("BERTScore skipped (--no-bertscore); reporting BLEU + ROUGE only.")
+    else:
+        try:
+            bert_m = evaluate.load("bertscore")
+            pf_kwargs: dict[str, Any] = {
+                "predictions": ["ok"],
+                "references": ["ok"],
+                "device": bert_device,
+                "rescale_with_baseline": False,
+            }
+            if args.bertscore_model_type:
+                pf_kwargs["model_type"] = args.bertscore_model_type
+            else:
+                pf_kwargs["lang"] = args.bertscore_lang
+            bert_m.compute(**pf_kwargs)  # forces backbone load; raises here if uncached+offline
+        except Exception as exc:  # noqa: BLE001 — any load/download failure -> degrade gracefully
+            backbone = args.bertscore_model_type or f"lang={args.bertscore_lang} (roberta-large for en)"
+            bertscore_status = f"unavailable: {type(exc).__name__}: {exc}"
+            bert_m = None
+            _log(
+                f"BERTScore backbone [{backbone}] could not load ({type(exc).__name__}). "
+                "Continuing with BLEU + ROUGE only. On an offline HPC node, pre-cache it on the "
+                "login node (proxy on): python -c \"from transformers import AutoModel, AutoTokenizer; "
+                "AutoTokenizer.from_pretrained('roberta-large'); AutoModel.from_pretrained('roberta-large')\" "
+                "into $HF_HOME, then re-run; or pass --bertscore-model-type <cached path> / --no-bertscore."
+            )
 
     def _score(h: list[str], r: list[str]) -> dict[str, Any]:
         return _subset_metrics_author(
@@ -417,6 +481,7 @@ def main(argv: list[str] | None = None) -> int:
             scorer=scorer,
             bert_m=bert_m,
             bertscore_lang=args.bertscore_lang,
+            bertscore_model_type=args.bertscore_model_type,
             bertscore_batch_size=args.bertscore_batch_size,
             bert_device=bert_device,
         )
@@ -445,7 +510,12 @@ def main(argv: list[str] | None = None) -> int:
         "metrics_config": {
             "bleu": "char-level BLEU-2 via nltk.sentence_bleu([ref], hyp, weights=(0.5,0.5)); per-example mean",
             "rouge": "rouge_score RougeScorer use_stemmer=True; per-example mean F-measure",
-            "bertscore": {"lang": args.bertscore_lang, "reported_as": "mean per-example F1"},
+            "bertscore": {
+                "lang": args.bertscore_lang,
+                "model_type": args.bertscore_model_type,
+                "status": bertscore_status,
+                "reported_as": "mean per-example F1 (null when status != ok)",
+            },
         },
         "overall": _score(hypotheses, references),
     }
