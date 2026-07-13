@@ -118,6 +118,8 @@ Metrics from **`main.eval_decode`** / **`main.structured_decode`** (real **test*
 
 ### Author-parity re-eval — the paper gap is mostly the metric (B17) — 2026-07-13
 
+**Full write-up (thesis/professor-ready):** [B17-final-summary.md](B17-final-summary.md).
+
 Re-scored **B17** (`final_model`, LoRA r32) with the *original authors'* ruler via
 **`main.eval_author_parity`** (reproduces `Speech_LLM/4_model_evaluation_flan_t5.py`):
 **char-level BLEU-2** (nltk raw-string call — chars, not words), **stemmed per-example
