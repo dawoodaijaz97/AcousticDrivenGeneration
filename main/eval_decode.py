@@ -19,7 +19,10 @@ common HF-based workflows, this script uses HuggingFace ``evaluate`` wrappers:
 - **ROUGE**: ``evaluate``'s ROUGE — same ``rouge_score`` backend as the metric card; **bootstrap aggregate**
   ``mid`` **F1** for rouge1 / rouge2 / rougeL, ``use_stemmer=False`` (HF default). Maps to Table columns **R-1**,
   **R-2**, **R-L**.
-- **BERTScore**: ``evaluate``'s BERTScore — mean **F1** over sentences with ``lang='es'`` (Table **BERT**).
+- **BERTScore**: ``evaluate``'s BERTScore — mean **F1** over sentences, ``lang='en'`` (Table **BERT**).
+  The mFDA reports are English (the *speech* is Colombian Spanish, the *reports* are not), so ``en``
+  (roberta-large) is correct. This was ``es`` before 2026-07-13; runs logged earlier used the
+  multilingual backbone and under-scored BERT.
 
 References are recovered by decoding the tokenized ``labels`` column. Use the same ``--tokenized-dir`` as training.
 
@@ -177,8 +180,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument(
         "--bertscore-lang",
         type=str,
-        default="es",
-        help="BERTScore language code (default es for Colombian Spanish).",
+        default="en",
+        help=(
+            "BERTScore language code (default en: the mFDA reports are written in English, "
+            "even though the source speech is Colombian Spanish). en -> roberta-large backbone. "
+            "Historical runs before 2026-07-13 used es (bert-base-multilingual-cased) and "
+            "under-scored BERT; pass --bertscore-lang es only to reproduce those."
+        ),
     )
     p.add_argument(
         "--bertscore-batch-size",

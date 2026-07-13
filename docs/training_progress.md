@@ -19,6 +19,11 @@ Metrics from **`main.eval_decode`** / **`main.structured_decode`** (real **test*
 
 **Artifacts per run:** `runs/<model>/<run>/test_decode_metrics.json`, `test_eval.json`.
 
+> ⚠️ **BERT/AVG columns below are `lang=es` (pre-2026-07-13).** `eval_decode` now defaults to
+> `--bertscore-lang en` (the reports are English; `es` under-scored BERT by ~0.08–0.09). A future
+> `en` re-decode will show higher **BERT** (and thus **AVG**) that is a **metric correction, not a
+> model gain** — don't read it as improvement. Re-decode a run before comparing its BERT to a new one.
+
 ---
 
 ## Summary — all runs with decode eval

@@ -52,7 +52,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--fp16", action="store_true")
     p.add_argument("--bleu-tokenize", type=str, default="13a")
     p.add_argument("--bleu-lowercase", action="store_true")
-    p.add_argument("--bertscore-lang", type=str, default="es")
+    p.add_argument("--bertscore-lang", type=str, default="en")  # reports are English; es under-scores BERT
     p.add_argument("--bertscore-batch-size", type=int, default=32)
     return p.parse_args(argv)
 

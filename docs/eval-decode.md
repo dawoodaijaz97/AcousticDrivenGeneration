@@ -42,7 +42,7 @@ ROUGE is common for **summarization and report-style** text. Here it is computed
 
 ### BERT (BERTScore)
 
-**`BERT`** is **not** “the BERT classifier’s accuracy.” It is **BERTScore**: prediction and reference are embedded with a **multilingual BERT** (for `lang='es'`), tokens are aligned by **cosine similarity** of vectors, and scores are aggregated to precision / recall / **F1**. The script reports the **mean F1 over test examples** — it gives **partial credit for paraphrases** and similar meaning when word overlap (ROUGE/BLEU) is low.
+**`BERT`** is **not** “the BERT classifier’s accuracy.” It is **BERTScore**: prediction and reference are embedded with a BERT model (default `lang='en'` → **roberta-large**, since the mFDA reports are English), tokens are aligned by **cosine similarity** of vectors, and scores are aggregated to precision / recall / **F1**. The script reports the **mean F1 over test examples** — it gives **partial credit for paraphrases** and similar meaning when word overlap (ROUGE/BLEU) is low. (Default was `es` before 2026-07-13; that multilingual backbone under-scored these English reports.)
 
 ### AVG
 
@@ -78,7 +78,7 @@ The paper states inference used **512 output tokens**, **beam search 3**, and **
 | `--fp16` | no | `float16` weights on CUDA only. |
 | `--bleu-tokenize` | no | SacreBLEU tokenizer name (default `13a`). |
 | `--bleu-lowercase` | no | Lowercase text before BLEU. |
-| `--bertscore-lang` | no | BERTScore `lang` preset (default `es`). |
+| `--bertscore-lang` | no | BERTScore `lang` preset (default `en` → roberta-large; reports are English). Pass `es` only to reproduce pre-2026-07-13 runs. |
 | `--bertscore-batch-size` | no | BERTScore batch size (default `32`). |
 
 ## Output JSON (overview)
@@ -98,6 +98,6 @@ python -m main.eval_decode --tokenized-dir data/processed/100k/tokenized --model
 
 ## Notes
 
-- First **BERTScore** run downloads the multilingual BERT weights used for `lang='es'`; allow time and disk.
+- First **BERTScore** run downloads the backbone weights for `lang='en'` (**roberta-large**, ~1.4 GB); allow time and disk. On an offline HPC compute node, pre-cache it on the login node first (see [hpc-commands.md](hpc-commands.md)).
 - Table 4 in the paper is computed on **100** real reports; your `test` row count should match your prepared split (often 96 in this repo’s canonical CSVs—compare before interpreting gaps vs. the paper).
 - The PDF cites a **general MT metrics survey** [40] but does not specify a custom BLEU script; this implementation follows **Hugging Face `evaluate`** defaults for comparability. Override **`--bleu-tokenize`** if you need to match another toolkit.
