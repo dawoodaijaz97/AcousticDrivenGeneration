@@ -12,6 +12,7 @@ path/
 /runs/**
 !/runs/**/
 !/runs/**/test_decode_metrics.json
+!/runs/**/test_author_parity_metrics.json
 !/runs/**/test_eval.json
 !/runs/**/pd_analysis.json
 !/runs/**/*.png

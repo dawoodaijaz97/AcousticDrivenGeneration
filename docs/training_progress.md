@@ -15,7 +15,7 @@
 
 Metrics from **`main.eval_decode`** / **`main.structured_decode`** (real **test**, 96 rows; beam 3 default, max 512 tokens) and **`test_eval.json`** (teacher-forcing **test_loss** after `main.train`). All generation scores are on a **0–1** scale (higher is better except `test_loss`).
 
-**Paper reference (LLaMA-7B, Table 4 ~AVG):** ~**0.68** overall. Our Flan-T5 runs remain below that; this log tracks **relative** gains across configs.
+**Paper reference (LLaMA-7B, Table 4 ~AVG):** ~**0.68** overall. Our Flan-T5 `eval_decode` AVG (~0.54) looks below that, but **most of the apparent gap is the metric, not the model** — the paper's BLEU is char-level BLEU-2, ours is word SacreBLEU-4. Under the authors' own ruler, **B17 reaches AVG 0.649 / char-BLEU 0.759 / BERT-en 0.911**, right beside the paper's 7B numbers. See **[Author-parity re-eval](#author-parity-re-eval--the-paper-gap-is-mostly-the-metric-b17)** below. This log otherwise tracks **relative** gains across configs on the honest `eval_decode` metric.
 
 **Artifacts per run:** `runs/<model>/<run>/test_decode_metrics.json`, `test_eval.json`.
 
@@ -110,6 +110,37 @@ Metrics from **`main.eval_decode`** / **`main.structured_decode`** (real **test*
 ---
 
 ## Conclusions
+
+### Author-parity re-eval — the paper gap is mostly the metric (B17) — 2026-07-13
+
+Re-scored **B17** (`final_model`, LoRA r32) with the *original authors'* ruler via
+**`main.eval_author_parity`** (reproduces `Speech_LLM/4_model_evaluation_flan_t5.py`):
+**char-level BLEU-2** (nltk raw-string call — chars, not words), **stemmed per-example
+ROUGE F1**, **BERTScore `lang=en`**, and their sampling decode (`do_sample=True,
+temperature=0.7, top_k=50, min_length=100, num_beams=3`).
+
+| Metric | Overall | PD | HC |
+| --- | --- | --- | --- |
+| char-BLEU-2 | **0.759** | 0.744 | 0.775 |
+| R-1 / R-2 / R-L | 0.632 / 0.394 / 0.548 | 0.611 / 0.344 / 0.508 | 0.652 / 0.444 / 0.588 |
+| BERT-en | **0.911** | 0.909 | 0.912 |
+| **AVG (5-metric)** | **0.649** | 0.623 | 0.674 |
+
+- **The same checkpoint scores AVG 0.542 / word-BLEU 0.362 on honest `eval_decode`, but
+  AVG 0.649 / char-BLEU 0.759 here.** The ~0.40 BLEU jump is *entirely* the metric
+  (char BLEU-2 vs word SacreBLEU-4), not a change in outputs. B17's char-BLEU (0.744 PD /
+  0.775 HC) sits within ~5–6 points of the paper's **7B-model** headline (0.789 / 0.836),
+  from a 248M model — so our Flan-T5 was never "far below the paper"; the rulers differed.
+- **BERTScore language mattered too:** BERT-en **0.911** vs `eval_decode`'s BERT-es **0.823**
+  (the `es` default is a bug — reports are English; see the eval-decode note). ~0.09 of the
+  BERT gap was the wrong language model.
+- **ROUGE-2 barely moves** (0.394 here vs 0.389 on `eval_decode`) because ROUGE is word-based
+  under both rulers — the fingerprint confirming BLEU is where the divergence lives.
+- **HC > PD** under parity too (HC AVG 0.674 > PD 0.623), matching the paper's "better on HC"
+  and our honest-metric pattern.
+- **Reproduce:** `python -m main.eval_author_parity --tokenized-dir data/processed/flan-t5-base/100k-flan-paper/tokenized --model-path runs/flan-t5-base/100k-flan-paper-5ep-lora32/final_model --tokenizer-model google/flan-t5-base --output-json runs/flan-t5-base/100k-flan-paper-5ep-lora32/test_author_parity_metrics.json --require-gpu` (BERTScore needs `roberta-large` pre-cached on the HPC login node; the script degrades to BLEU+ROUGE if it's offline). Artifact: `test_author_parity_metrics.json`.
+- **Selection unchanged:** these are parity/interpretation numbers only. Keep using
+  `eval_decode` AVG (word BLEU-4) for model selection — B17 remains best there too.
 
 ### Learning rate (5e-4 vs 3e-4 at 100k)
 
@@ -364,4 +395,4 @@ python -m main.plot_training_runs runs/flan-t5-small/100k runs/flan-t5-small/100
 
 ---
 
-*Results log — last updated 2026-07-13 (**B24** closed: raw `Instructions` input AVG **0.479** vs B17 **0.542**; **B17** remains best). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
+*Results log — last updated 2026-07-13 (**Author-parity re-eval**: B17 under the paper's own metric = AVG **0.649** / char-BLEU **0.759** / BERT-en **0.911**, resolving the apparent paper gap as a metric artifact. Earlier: **B24** closed, raw `Instructions` input AVG **0.479** vs B17 **0.542**; **B17** remains best). Plan: [Model Improvement Plan](Model%20Improvement%20Plan.md).*
