@@ -15,7 +15,7 @@
 
 Metrics from **`main.eval_decode`** / **`main.structured_decode`** (real **test**, 96 rows; beam 3 default, max 512 tokens) and **`test_eval.json`** (teacher-forcing **test_loss** after `main.train`). All generation scores are on a **0–1** scale (higher is better except `test_loss`).
 
-**Paper reference (LLaMA-7B, Table 4 ~AVG):** ~**0.68** overall. Our Flan-T5 `eval_decode` AVG (~0.54) looks below that, but **most of the apparent gap is the metric, not the model** — the paper's BLEU is char-level BLEU-2, ours is word SacreBLEU-4. Under the authors' own ruler, **B17 reaches AVG 0.649 / char-BLEU 0.759 / BERT-en 0.911**, right beside the paper's 7B numbers. See **[Author-parity re-eval](#author-parity-re-eval--the-paper-gap-is-mostly-the-metric-b17)** below. This log otherwise tracks **relative** gains across configs on the honest `eval_decode` metric.
+**Paper reference (LLaMA-7B, Table 4 ~AVG):** ~**0.68** overall. Our Flan-T5 `eval_decode` AVG (B17 = **0.559**, `en`-corrected) looks below that, but **most of the apparent gap is the metric, not the model** — the paper's BLEU is char-level BLEU-2, ours is word SacreBLEU-4. Under the authors' own ruler, **B17 reaches AVG 0.649 / char-BLEU 0.759 / BERT-en 0.911**, right beside the paper's 7B numbers. See **[Author-parity re-eval](#author-parity-re-eval--the-paper-gap-is-mostly-the-metric-b17)** below. This log otherwise tracks **relative** gains across configs on the honest `eval_decode` metric.
 
 **Artifacts per run:** `runs/<model>/<run>/test_decode_metrics.json`, `test_eval.json`.
 
@@ -136,9 +136,12 @@ temperature=0.7, top_k=50, min_length=100, num_beams=3`).
   (char BLEU-2 vs word SacreBLEU-4), not a change in outputs. B17's char-BLEU (0.744 PD /
   0.775 HC) sits within ~5–6 points of the paper's **7B-model** headline (0.789 / 0.836),
   from a 248M model — so our Flan-T5 was never "far below the paper"; the rulers differed.
-- **BERTScore language mattered too:** BERT-en **0.911** vs `eval_decode`'s BERT-es **0.823**
-  (the `es` default is a bug — reports are English; see the eval-decode note). ~0.09 of the
-  BERT gap was the wrong language model.
+- **BERTScore language mattered too, and is now fixed:** `eval_decode`'s default was `es`
+  (multilingual, wrong — the reports are English). Re-decoded B17 with the new `en` default
+  → **BERT 0.823 → 0.911**, **AVG 0.542 → 0.559** (PD 0.532, HC 0.586); **R-1/R-2/R-L/BLEU
+  byte-identical** to the es run, confirming it's a pure metric correction, not a model change.
+  `test_decode_metrics.json` now holds the `en` numbers. **This is B17's corrected honest AVG:
+  0.559.** (The es-based summary table above is not re-decoded — see its banner.)
 - **ROUGE-2 barely moves** (0.394 here vs 0.389 on `eval_decode`) because ROUGE is word-based
   under both rulers — the fingerprint confirming BLEU is where the divergence lives.
 - **HC > PD** under parity too (HC AVG 0.674 > PD 0.623), matching the paper's "better on HC"
