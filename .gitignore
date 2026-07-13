@@ -16,4 +16,3 @@ path/
 !/runs/**/pd_analysis.json
 !/runs/**/*.png
 .env
-/docs

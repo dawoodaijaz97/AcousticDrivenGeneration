@@ -45,6 +45,7 @@ On `tinyx`, Slurm commands need the **`.tinygpu`** suffix: `salloc.tinygpu`, `sb
 - **Frontend** `tinyx` = login only; **compute** nodes = `tg0xx` (check `hostname`, `nvidia-smi`)
 - Long training → **`sbatch.tinygpu`**, not hours on frontend (CPU time limits)
 - Queue: `squeue.tinygpu -u iwi5439h`; no exact queue position in Slurm
+- Batch `#SBATCH --time=` cap is **`24:00:00`**. For **base** model training jobs (`flan-t5-base`/`t5-base`), request **`10:00:00`** — plenty for LoRA/5-ep/oversampled base runs; reserve the full `24:00:00` for **large** model training.
 
 ## Conda (one-time on cluster)
 
